@@ -1,0 +1,4418 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>WAR CHRONICLE：紅蒼領土戦シミュレーター</title>
+  <style>
+    /* =========================================================================
+       1. THEME DESIGN TOKENS (DARK: TACTICAL COMMAND / LIGHT: WAR ARCHIVE MAP)
+       ========================================================================= */
+    :root {
+      --font-sans: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, -apple-system, sans-serif;
+      --font-serif: "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif;
+      --radius-xs: 6px;
+      --radius-sm: 9px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-pill: 999px;
+    }
+
+    [data-theme="dark"] {
+      --bg-app: #060a13;
+      --bg-bar: #0c1322;
+      --bg-panel: rgba(12, 19, 34, 0.92);
+      --bg-panel-solid: #0f172a;
+      --bg-chip: rgba(255, 255, 255, 0.055);
+      --bg-btn: rgba(255, 255, 255, 0.065);
+      --bg-btn-hover: rgba(255, 255, 255, 0.13);
+      --bg-btn-active: rgba(56, 189, 248, 0.22);
+      --border-subtle: rgba(148, 163, 184, 0.18);
+      --border-strong: rgba(148, 163, 184, 0.34);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-active: #7dd3fc;
+      --red-main: #ff3b5c;
+      --red-soft: rgba(255, 59, 92, 0.18);
+      --red-text: #ff8aa0;
+      --blue-main: #2997ff;
+      --blue-soft: rgba(41, 151, 255, 0.18);
+      --blue-text: #7ec4ff;
+      --gold: #fbbf24;
+      --gold-soft: rgba(251, 191, 36, 0.18);
+      --bar-track: #1e293b;
+      --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] {
+      --bg-app: #e7decb;
+      --bg-bar: #f4eedf;
+      --bg-panel: rgba(247, 242, 230, 0.94);
+      --bg-panel-solid: #f7f2e6;
+      --bg-chip: rgba(66, 52, 34, 0.065);
+      --bg-btn: rgba(66, 52, 34, 0.07);
+      --bg-btn-hover: rgba(66, 52, 34, 0.14);
+      --bg-btn-active: rgba(15, 98, 178, 0.16);
+      --border-subtle: rgba(92, 74, 50, 0.22);
+      --border-strong: rgba(92, 74, 50, 0.42);
+      --text-main: #231b12;
+      --text-muted: #665846;
+      --text-active: #0c5aa6;
+      --red-main: #c8233c;
+      --red-soft: rgba(200, 35, 60, 0.14);
+      --red-text: #a5182e;
+      --blue-main: #1a66b8;
+      --blue-soft: rgba(26, 102, 184, 0.14);
+      --blue-text: #124f94;
+      --gold: #b4690e;
+      --gold-soft: rgba(180, 105, 14, 0.16);
+      --bar-track: #d6cbb5;
+      --shadow-card: 0 8px 24px rgba(46, 35, 20, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-app);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-variant-numeric: tabular-nums;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+
+    /* =========================================================================
+       2. NON-OVERLAPPING FLEX APPLICATION SHELL (PC & iPad PORTRAIT/LANDSCAPE)
+       ========================================================================= */
+    #app {
+      display: flex;
+      flex-direction: column;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      background: var(--bg-app);
+    }
+
+    /* =========================================================================
+       3. TOP HUD HEADER
+       ========================================================================= */
+    #top-hud {
+      flex: 0 0 auto;
+      background: var(--bg-bar);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 6px 12px 7px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      z-index: 15;
+    }
+
+    /* Row 1: Campaign Title + Score + Timer + Phase */
+    .hud-campaign-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: nowrap;
+      font-size: 0.75rem;
+    }
+
+    .campaign-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .brand-tag {
+      font-size: 0.62rem;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      padding: 2px 7px;
+      border-radius: var(--radius-pill);
+      background: linear-gradient(135deg, var(--red-soft), var(--blue-soft));
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      flex-shrink: 0;
+    }
+
+    #campaign-name {
+      font-family: var(--font-serif);
+      font-weight: 800;
+      font-size: 0.88rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: 0.03em;
+    }
+
+    .campaign-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .score-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 9px;
+      border-radius: var(--radius-pill);
+      background: var(--bg-chip);
+      border: 1px solid var(--border-subtle);
+      font-weight: 800;
+      font-size: 0.74rem;
+    }
+
+    .score-red { color: var(--red-main); }
+    .score-blue { color: var(--blue-main); }
+    .score-sep { color: var(--text-muted); font-weight: 400; }
+
+    .timer-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      color: var(--text-muted);
+      font-size: 0.74rem;
+    }
+
+    #phase-badge {
+      display: none;
+      padding: 1px 7px;
+      border-radius: var(--radius-pill);
+      background: var(--gold-soft);
+      color: var(--gold);
+      border: 1px solid rgba(251, 191, 36, 0.4);
+      font-size: 0.66rem;
+      font-weight: 800;
+    }
+
+    #phase-badge.active {
+      display: inline-block;
+      animation: pulseBadge 1.4s infinite ease-in-out;
+    }
+
+    @keyframes pulseBadge {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Row 2: Red Commander & Gauge | Blue Commander & Gauge */
+    .hud-teams-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .team-hud {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .team-hud.blue {
+      flex-direction: row-reverse;
+      text-align: right;
+    }
+
+    .team-pct-col {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      flex-shrink: 0;
+      min-width: 58px;
+    }
+
+    .team-hud.blue .team-pct-col {
+      align-items: flex-end;
+    }
+
+    .team-name-line {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    .team-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .team-hud.red .team-name-line { color: var(--red-main); }
+    .team-hud.red .team-dot { background: var(--red-main); box-shadow: 0 0 7px var(--red-main); }
+    .team-hud.blue .team-name-line { color: var(--blue-main); }
+    .team-hud.blue .team-dot { background: var(--blue-main); box-shadow: 0 0 7px var(--blue-main); }
+
+    .pct-val {
+      font-size: 1.05rem;
+      font-weight: 900;
+      line-height: 1.1;
+    }
+
+    .team-detail-col {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .commander-line {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .team-hud.blue .commander-line {
+      justify-content: flex-end;
+    }
+
+    .cmd-name {
+      font-weight: 800;
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+
+    .cmd-trait {
+      font-size: 0.64rem;
+      padding: 1px 6px;
+      border-radius: var(--radius-xs);
+      background: var(--bg-chip);
+      border: 1px solid var(--border-subtle);
+      white-space: nowrap;
+    }
+
+    .stance-pill {
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 1px 7px;
+      border-radius: var(--radius-pill);
+      white-space: nowrap;
+    }
+
+    .team-hud.red .stance-pill {
+      background: var(--red-soft);
+      color: var(--red-text);
+      border: 1px solid rgba(255, 59, 92, 0.35);
+    }
+
+    .team-hud.blue .stance-pill {
+      background: var(--blue-soft);
+      color: var(--blue-text);
+      border: 1px solid rgba(41, 151, 255, 0.35);
+    }
+
+    .gauge-and-stats {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+
+    .team-hud.blue .gauge-and-stats {
+      flex-direction: row-reverse;
+    }
+
+    .strat-gauge-wrap {
+      flex: 1 1 auto;
+      max-width: 155px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .team-hud.blue .strat-gauge-wrap {
+      flex-direction: row-reverse;
+    }
+
+    .strat-label {
+      font-size: 0.63rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .strat-track {
+      flex: 1 1 auto;
+      height: 6px;
+      background: var(--bar-track);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+      min-width: 44px;
+    }
+
+    .strat-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: var(--radius-pill);
+      transition: width 0.2s linear;
+    }
+
+    .team-hud.red .strat-fill {
+      background: linear-gradient(90deg, #ff3b5c, #fbbf24);
+    }
+
+    .team-hud.blue .strat-fill {
+      background: linear-gradient(90deg, #2997ff, #38ef7d);
+    }
+
+    .mini-counts {
+      display: inline-flex;
+      gap: 6px;
+      white-space: nowrap;
+      font-size: 0.68rem;
+    }
+
+    .mini-counts strong {
+      color: var(--text-main);
+    }
+
+    /* Row 3: Territory Tug-of-war Bar */
+    .domination-bar-wrap {
+      position: relative;
+      width: 100%;
+      height: 8px;
+      background: var(--bar-track);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+      display: flex;
+    }
+
+    #bar-red {
+      height: 100%;
+      background: linear-gradient(90deg, #b81434 0%, var(--red-main) 80%, #ff7a92 100%);
+      transition: width 0.24s linear;
+    }
+
+    #bar-neutral {
+      flex: 1 1 auto;
+      height: 100%;
+      background: repeating-linear-gradient(
+        45deg,
+        rgba(148, 163, 184, 0.14),
+        rgba(148, 163, 184, 0.14) 4px,
+        transparent 4px,
+        transparent 8px
+      );
+    }
+
+    #bar-blue {
+      height: 100%;
+      background: linear-gradient(270deg, #0d5bb5 0%, var(--blue-main) 80%, #73c3ff 100%);
+      transition: width 0.24s linear;
+    }
+
+    .bar-mid {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: rgba(255, 255, 255, 0.55);
+      transform: translateX(-50%);
+    }
+
+    /* Row 4: News Ticker Line */
+    .ticker-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.72rem;
+      background: var(--bg-chip);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 3px 9px;
+      min-height: 24px;
+      overflow: hidden;
+    }
+
+    .ticker-badge {
+      font-size: 0.62rem;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: var(--radius-xs);
+      flex-shrink: 0;
+    }
+
+    .ticker-badge.sys { background: var(--gold-soft); color: var(--gold); }
+    .ticker-badge.red { background: var(--red-soft); color: var(--red-text); }
+    .ticker-badge.blue { background: var(--blue-soft); color: var(--blue-text); }
+
+    #ticker-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text-main);
+    }
+
+    /* =========================================================================
+       4. MAIN STAGE (CANVAS + NON-INTRUSIVE CUT-INS + DOCKABLE SIDE PANELS)
+       ========================================================================= */
+    #stage-area {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #canvas-wrapper {
+      flex: 1 1 auto;
+      min-width: 0;
+      min-height: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    canvas#sim-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Stylish Cut-In Event Toast Stack (Top-Right of Canvas, pointer-events: none) */
+    #cutin-stack {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 8;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: none;
+      max-width: min(330px, 78%);
+    }
+
+    .cutin-card {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 12px;
+      border-radius: var(--radius-md);
+      background: var(--bg-panel);
+      border: 1px solid var(--border-strong);
+      border-left-width: 4px;
+      box-shadow: var(--shadow-card);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      animation: slideInCutin 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .cutin-card.red { border-left-color: var(--red-main); }
+    .cutin-card.blue { border-left-color: var(--blue-main); }
+    .cutin-card.gold { border-left-color: var(--gold); }
+    .cutin-card.fadeout { opacity: 0; transform: translateX(-16px); }
+
+    @keyframes slideInCutin {
+      from { opacity: 0; transform: translateX(-20px) scale(0.96); }
+      to { opacity: 1; transform: translateX(0) scale(1); }
+    }
+
+    .cutin-icon {
+      font-size: 1.2rem;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+
+    .cutin-body {
+      min-width: 0;
+    }
+
+    .cutin-title {
+      font-size: 0.76rem;
+      font-weight: 900;
+      letter-spacing: 0.03em;
+      color: var(--text-main);
+    }
+
+    .cutin-card.red .cutin-title { color: var(--red-text); }
+    .cutin-card.blue .cutin-title { color: var(--blue-text); }
+    .cutin-card.gold .cutin-title { color: var(--gold); }
+
+    .cutin-desc {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      line-height: 1.25;
+    }
+
+    /* Compact Legend Pill (Bottom-Left of Canvas) */
+    #map-legend {
+      position: absolute;
+      left: 10px;
+      bottom: 8px;
+      z-index: 6;
+      pointer-events: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      padding: 3px 10px;
+      font-size: 0.64rem;
+      color: var(--text-muted);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+
+    .leg-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    /* Side Drawer for War Chronicle & Timeline Graph */
+    #side-drawer {
+      flex: 0 0 288px;
+      width: 288px;
+      background: var(--bg-bar);
+      border-left: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 12;
+      transition: width 0.22s ease, flex-basis 0.22s ease;
+    }
+
+    #side-drawer.closed {
+      display: none;
+    }
+
+    .drawer-section {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .drawer-section.grow {
+      flex: 1 1 auto;
+      border-bottom: none;
+    }
+
+    .drawer-section.hidden {
+      display: none;
+    }
+
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 11px;
+      font-size: 0.74rem;
+      font-weight: 800;
+      background: var(--bg-chip);
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-main);
+    }
+
+    .drawer-sub {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    #graph-box {
+      padding: 8px 10px;
+    }
+
+    #graph-canvas {
+      display: block;
+      width: 100%;
+      height: 86px;
+      border-radius: var(--radius-xs);
+      background: var(--bg-app);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .graph-legend {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.64rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    #chronicle-list {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .log-entry {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 5px 7px;
+      border-radius: var(--radius-xs);
+      background: var(--bg-chip);
+      border-left: 3px solid var(--border-strong);
+      font-size: 0.7rem;
+      line-height: 1.35;
+    }
+
+    .log-entry.red { border-left-color: var(--red-main); }
+    .log-entry.blue { border-left-color: var(--blue-main); }
+    .log-entry.gold { border-left-color: var(--gold); background: var(--gold-soft); }
+
+    .log-time {
+      font-size: 0.64rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .log-msg {
+      color: var(--text-main);
+      word-break: break-word;
+    }
+
+    /* =========================================================================
+       5. BOTTOM COMPACT CONTROL BAR
+       ========================================================================= */
+    #control-bar {
+      flex: 0 0 auto;
+      background: var(--bg-bar);
+      border-top: 1px solid var(--border-subtle);
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 5px;
+      z-index: 15;
+    }
+
+    .ctrl-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .ctrl-sep {
+      width: 1px;
+      height: 20px;
+      background: var(--border-subtle);
+      margin: 0 2px;
+    }
+
+    .ctrl-btn, .ctrl-select {
+      appearance: none;
+      -webkit-appearance: none;
+      background: var(--bg-btn);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xs);
+      padding: 5px 9px;
+      font-size: 0.73rem;
+      font-weight: 700;
+      font-family: inherit;
+      min-height: 32px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      white-space: nowrap;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    }
+
+    .ctrl-btn:hover, .ctrl-select:hover {
+      background: var(--bg-btn-hover);
+      border-color: var(--border-strong);
+    }
+
+    .ctrl-btn:active {
+      transform: scale(0.95);
+    }
+
+    .ctrl-btn.active {
+      background: var(--bg-btn-active);
+      border-color: var(--text-active);
+      color: var(--text-active);
+    }
+
+    .ctrl-btn.primary {
+      background: linear-gradient(135deg, var(--red-soft), var(--blue-soft));
+      border-color: var(--border-strong);
+    }
+
+    .ctrl-select {
+      padding-right: 22px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 7px center;
+    }
+
+    .ctrl-select option {
+      background: var(--bg-panel-solid);
+      color: var(--text-main);
+    }
+
+    /* =========================================================================
+       6. WAR RESULT STORY SUMMARY OVERLAY
+       ========================================================================= */
+    #result-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 25;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 8, 16, 0.52);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+      padding: 14px;
+    }
+
+    #result-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .result-card {
+      width: min(490px, 95vw);
+      max-height: 92%;
+      overflow-y: auto;
+      background: var(--bg-panel-solid);
+      border: 1.5px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-card);
+      transform: scale(0.94);
+      transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    #result-overlay.show .result-card {
+      transform: scale(1);
+    }
+
+    .result-card.red-win { border-color: var(--red-main); }
+    .result-card.blue-win { border-color: var(--blue-main); }
+
+    .res-kicker {
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .res-title {
+      font-family: var(--font-serif);
+      font-size: 1.55rem;
+      font-weight: 900;
+      text-align: center;
+      margin: 4px 0 3px;
+    }
+
+    .result-card.red-win .res-title { color: var(--red-main); }
+    .result-card.blue-win .res-title { color: var(--blue-main); }
+
+    .res-reason {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .res-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .res-stat {
+      background: var(--bg-chip);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 7px 5px;
+      text-align: center;
+    }
+
+    .res-stat-lbl {
+      font-size: 0.62rem;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .res-stat-val {
+      font-size: 0.88rem;
+      font-weight: 900;
+      color: var(--text-main);
+    }
+
+    .res-story-box {
+      background: var(--bg-chip);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 9px 11px;
+      margin-bottom: 13px;
+    }
+
+    .res-story-title {
+      font-size: 0.7rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 5px;
+      letter-spacing: 0.04em;
+    }
+
+    .res-highlights {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.73rem;
+      color: var(--text-main);
+      line-height: 1.35;
+    }
+
+    .res-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* =========================================================================
+       7. RESPONSIVE BREAKPOINTS (iPad PORTRAIT / MOBILE)
+       ========================================================================= */
+    @media (max-width: 900px) {
+      #side-drawer {
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: min(290px, 82vw);
+        box-shadow: -8px 0 28px rgba(0, 0, 0, 0.45);
+      }
+    }
+
+    @media (max-width: 720px) {
+      #top-hud {
+        padding: 5px 7px 6px;
+        gap: 4px;
+      }
+
+      #campaign-name {
+        font-size: 0.78rem;
+      }
+
+      .hud-teams-row {
+        gap: 6px;
+      }
+
+      .team-pct-col {
+        min-width: 48px;
+      }
+
+      .pct-val {
+        font-size: 0.9rem;
+      }
+
+      .cmd-trait {
+        display: none;
+      }
+
+      .mini-counts {
+        display: none;
+      }
+
+      #map-legend {
+        display: none;
+      }
+
+      .ctrl-sep {
+        display: none;
+      }
+
+      .ctrl-btn, .ctrl-select {
+        padding: 4px 7px;
+        font-size: 0.68rem;
+        min-height: 30px;
+      }
+
+      .res-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- ==================== TOP HUD ==================== -->
+    <header id="top-hud">
+      <!-- Campaign Name, Match Score & Timer -->
+      <div class="hud-campaign-row">
+        <div class="campaign-title-wrap">
+          <span class="brand-tag">WAR CHRONICLE</span>
+          <span id="campaign-name">第1次 蒼紅海峡戦役</span>
+        </div>
+        <div class="campaign-meta">
+          <div class="score-pill" title="通算勝利数">
+            <span class="score-red">紅 <span id="wins-red">0</span></span>
+            <span class="score-sep">-</span>
+            <span class="score-blue"><span id="wins-blue">0</span> 蒼</span>
+          </div>
+          <div class="timer-pill">
+            <span id="map-label">海峡決戦</span>
+            <span>•</span>
+            <span id="match-timer">00:00</span>
+            <span id="phase-badge">総力戦</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Red & Blue AI Commanders, Strategy Gauges & Stats -->
+      <div class="hud-teams-row">
+        <!-- RED TEAM -->
+        <div class="team-hud red">
+          <div class="team-pct-col">
+            <span class="team-name-line"><span class="team-dot"></span>紅軍</span>
+            <span class="pct-val" id="red-pct">0.0%</span>
+          </div>
+          <div class="team-detail-col">
+            <div class="commander-line">
+              <span class="cmd-name" id="red-cmd-name">黒田元帥</span>
+              <span class="cmd-trait" id="red-cmd-trait">電撃戦主義</span>
+              <span class="stance-pill" id="red-stance">全面展開</span>
+            </div>
+            <div class="gauge-and-stats">
+              <div class="strat-gauge-wrap" title="戦略ゲージ（満タンで切り札発動）">
+                <span class="strat-label">戦略</span>
+                <div class="strat-track"><div class="strat-fill" id="red-gauge-fill"></div></div>
+                <span id="red-gauge-num">0</span>
+              </div>
+              <div class="mini-counts">
+                <span>拠点 <strong id="red-bases">0</strong></span>
+                <span>部隊 <strong id="red-units">0</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BLUE TEAM -->
+        <div class="team-hud blue">
+          <div class="team-pct-col">
+            <span class="team-name-line">蒼軍<span class="team-dot"></span></span>
+            <span class="pct-val" id="blue-pct">0.0%</span>
+          </div>
+          <div class="team-detail-col">
+            <div class="commander-line">
+              <span class="stance-pill" id="blue-stance">全面展開</span>
+              <span class="cmd-trait" id="blue-cmd-trait">要塞防衛型</span>
+              <span class="cmd-name" id="blue-cmd-name">蒼井提督</span>
+            </div>
+            <div class="gauge-and-stats">
+              <div class="strat-gauge-wrap" title="戦略ゲージ（満タンで切り札発動）">
+                <span class="strat-label">戦略</span>
+                <div class="strat-track"><div class="strat-fill" id="blue-gauge-fill"></div></div>
+                <span id="blue-gauge-num">0</span>
+              </div>
+              <div class="mini-counts">
+                <span>拠点 <strong id="blue-bases">0</strong></span>
+                <span>部隊 <strong id="blue-units">0</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Domination Tug-of-War Bar -->
+      <div class="domination-bar-wrap" aria-label="領土支配率バー">
+        <div id="bar-red" style="width: 10%;"></div>
+        <div id="bar-neutral"></div>
+        <div id="bar-blue" style="width: 10%;"></div>
+        <div class="bar-mid"></div>
+      </div>
+
+      <!-- Live Breaking Ticker -->
+      <div class="ticker-row">
+        <span class="ticker-badge sys" id="ticker-badge">開戦</span>
+        <span id="ticker-text">作戦開始：紅蒼両軍が前線へ展開を開始しました</span>
+      </div>
+    </header>
+
+    <!-- ==================== MAIN STAGE ==================== -->
+    <main id="stage-area">
+      <!-- Primary Canvas Viewport -->
+      <div id="canvas-wrapper">
+        <canvas id="sim-canvas"></canvas>
+
+        <!-- Non-intrusive Event Cut-in Toast Stack -->
+        <div id="cutin-stack" aria-live="polite"></div>
+
+        <!-- Compact Tactical Map Legend -->
+        <div id="map-legend">
+          <span class="leg-item">★ 首都</span>
+          <span class="leg-item">⬡ 要塞</span>
+          <span class="leg-item">▲ サイロ</span>
+          <span class="leg-item">◆ 補給</span>
+          <span class="leg-item">┆ 地下坑道</span>
+          <span class="leg-item">⚠ 補給切れ</span>
+        </div>
+
+        <!-- War Result Story Summary Overlay -->
+        <section id="result-overlay" aria-live="polite">
+          <div class="result-card" id="result-card">
+            <div class="res-kicker">WAR CHRONICLE — 戦役終結報告</div>
+            <div class="res-title" id="res-title">紅軍の勝利！</div>
+            <div class="res-reason" id="res-reason">敵首都を陥落させ戦役を決しました</div>
+            <div class="res-grid">
+              <div class="res-stat">
+                <div class="res-stat-lbl">戦闘時間</div>
+                <div class="res-stat-val" id="res-time">01:45</div>
+              </div>
+              <div class="res-stat">
+                <div class="res-stat-lbl">ミサイル/迎撃</div>
+                <div class="res-stat-val" id="res-missiles">4 / 2</div>
+              </div>
+              <div class="res-stat">
+                <div class="res-stat-lbl">最大逆転幅</div>
+                <div class="res-stat-val" id="res-comeback">+18.4%</div>
+              </div>
+              <div class="res-stat">
+                <div class="res-stat-lbl">総動員/決戦兵器</div>
+                <div class="res-stat-val" id="res-specials">2 / 1</div>
+              </div>
+            </div>
+            <div class="res-story-box">
+              <div class="res-story-title">📜 戦役の転換点・ハイライト</div>
+              <ul class="res-highlights" id="res-highlights"></ul>
+            </div>
+            <div class="res-footer">
+              <span id="res-countdown">次の戦役へ 5秒後に移行...</span>
+              <button class="ctrl-btn primary" id="btn-res-next">今すぐ次の戦役へ ➔</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Dockable / Toggleable Side Drawer (Timeline Graph + War Chronicle Log) -->
+      <aside id="side-drawer" class="closed" aria-label="戦史・戦況パネル">
+        <div class="drawer-section hidden" id="drawer-graph-sec">
+          <div class="drawer-header">
+            <span>📈 戦況推移グラフ</span>
+            <span class="drawer-sub" id="graph-iso-label">孤立: 0</span>
+          </div>
+          <div id="graph-box">
+            <canvas id="graph-canvas" width="264" height="86"></canvas>
+            <div class="graph-legend">
+              <span style="color:var(--red-main)">● 紅軍</span>
+              <span>中立</span>
+              <span style="color:var(--blue-main)">● 蒼軍</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="drawer-section grow hidden" id="drawer-log-sec">
+          <div class="drawer-header">
+            <span>📜 戦史クロニクル</span>
+            <span class="drawer-sub" id="log-count-label">0件</span>
+          </div>
+          <div id="chronicle-list"></div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- ==================== COMPACT BOTTOM CONTROL BAR ==================== -->
+    <footer id="control-bar">
+      <div class="ctrl-group">
+        <button class="ctrl-btn" id="btn-pause" title="一時停止 / 再開">⏸ 停止</button>
+      </div>
+      <div class="ctrl-sep"></div>
+      <div class="ctrl-group" role="group" aria-label="再生速度">
+        <button class="ctrl-btn speed-btn active" data-speed="1">1x</button>
+        <button class="ctrl-btn speed-btn" data-speed="2">2x</button>
+        <button class="ctrl-btn speed-btn" data-speed="4">4x</button>
+      </div>
+      <div class="ctrl-sep"></div>
+      <div class="ctrl-group">
+        <select class="ctrl-select" id="map-select" aria-label="マップ選択">
+          <option value="random">マップ: ランダム</option>
+          <option value="strait">海峡決戦</option>
+          <option value="tunnel">山脈と地下坑道</option>
+          <option value="fortress">中央要塞</option>
+          <option value="archipelago">群島戦</option>
+          <option value="twin">双子大陸</option>
+        </select>
+        <button class="ctrl-btn primary" id="btn-next-campaign" title="次の戦役へ">↻ 次の戦役</button>
+      </div>
+      <div class="ctrl-sep"></div>
+      <div class="ctrl-group">
+        <button class="ctrl-btn active" id="btn-auto-next">自動連戦: ON</button>
+        <button class="ctrl-btn" id="btn-log-toggle">戦史ログ</button>
+        <button class="ctrl-btn" id="btn-graph-toggle">戦況グラフ</button>
+      </div>
+      <div class="ctrl-sep"></div>
+      <div class="ctrl-group">
+        <button class="ctrl-btn" id="btn-sound" title="合成効果音 ON/OFF">🔇 音OFF</button>
+        <button class="ctrl-btn" id="btn-theme" title="ダーク/ライト切替">☀ 地図風</button>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    /**
+     * =========================================================================
+     * WAR CHRONICLE：紅蒼領土戦シミュレーター
+     * -------------------------------------------------------------------------
+     * Zero-player dramatic autonomous grand-tactics spectator simulator.
+     * Single-file architecture:
+     *  - Procedural 5-map generator with BFS connectivity, Secret Tunnels,
+     *    Destructible Bridges, Forests, Mountains, Oceans & 4 Base Classes.
+     *  - Strategic Gauge & Autonomous Game-Changers:
+     *      * Ballistic Missiles + Mid-air Interceptors + Craters
+     *      * Total Mobilization Aura & Volunteer Surge
+     *      * Super-Heavy Juggernaut Boss Unit (AOE artillery + auto-paint)
+     *      * Carpet Bombing Squadrons
+     *      * Airborne Paratrooper Drops
+     *      * Amphibious Sea-Lane Landings (Beachheads)
+     *      * Rear-Area Partisan Uprisings
+     *      * Bridge Demolition & Engineer Reconstruction
+     *  - AI Commanders with randomized names, doctrines & 5 tactical stances.
+     *  - Encirclement & Supply-Line Cut detection with warning icons.
+     *  - Web Audio API procedural sound effects (default OFF).
+     *  - Dark (Tactical Command) & Light (Archival War Map) theme support.
+     * =========================================================================
+     */
+    (function () {
+      'use strict';
+
+      // =======================================================================
+      // 1. CONSTANTS, DEFINITIONS & PERSONALITIES
+      // =======================================================================
+      const TEAM_NEUTRAL = 0;
+      const TEAM_RED = 1;
+      const TEAM_BLUE = 2;
+
+      const T_WATER = 0;
+      const T_PLAINS = 1;
+      const T_FOREST = 2;
+      const T_MOUNTAIN = 3;
+      const T_BRIDGE = 4;
+      const T_BROKEN_BRIDGE = 5;
+      const T_CRATER = 6;
+      const T_TUNNEL = 7;
+
+      const BASE_CAPITAL = 'CAPITAL';
+      const BASE_FORTRESS = 'FORTRESS';
+      const BASE_SILO = 'SILO';
+      const BASE_SUPPLY = 'SUPPLY';
+
+      const U_INFANTRY = 0;
+      const U_RAIDER = 1;
+      const U_ARTILLERY = 2;
+      const U_JUGGERNAUT = 3;
+
+      const VICTORY_PCT = 85.0;
+      const TIME_LIMIT_SEC = 180; // 3:00 dramatic cap
+      const MAX_UNITS_PER_TEAM = 220;
+
+      const MAP_PRESETS = [
+        { id: 'strait', name: '海峡決戦', titles: ['蒼紅海峡戦役', '中央海峡攻防戦', '海峡突破作戦'] },
+        { id: 'tunnel', name: '山脈と地下坑道', titles: ['鉄嶺山脈戦役', '地底回廊奇襲戦', '分水嶺決戦'] },
+        { id: 'fortress', name: '中央要塞', titles: ['中央大要塞攻囲戦', '星形要塞争奪戦役', '覇権要塞決戦'] },
+        { id: 'archipelago', name: '群島戦', titles: ['蒼紅諸島上陸戦', '環礁群島争奪戦役', '多島海強襲作戦'] },
+        { id: 'twin', name: '双子大陸', titles: ['双子大陸分断戦役', '地峡制圧作戦', '両大陸最終決戦'] }
+      ];
+
+      const STANCES = {
+        EXPAND:  { id: 'EXPAND',  label: '全面展開' },
+        BLITZ:   { id: 'BLITZ',   label: '電撃突破' },
+        AMBUSH:  { id: 'AMBUSH',  label: '後方奇襲' },
+        DEFEND:  { id: 'DEFEND',  label: '総力防衛' },
+        COUNTER: { id: 'COUNTER', label: '起死回生' }
+      };
+
+      const COMMANDER_DOCTRINES = [
+        { id: 'BLITZ',    label: '電撃戦主義',   missileW: 0.9,  juggW: 1.3, bombW: 1.3, airW: 1.2, amphW: 1.1, interceptBonus: 0.00 },
+        { id: 'FORTRESS', label: '要塞防衛型',   missileW: 1.0,  juggW: 1.4, bombW: 0.9, airW: 0.8, amphW: 0.8, interceptBonus: 0.16 },
+        { id: 'MISSILE',  label: 'ミサイル偏重', missileW: 2.1,  juggW: 0.8, bombW: 1.3, airW: 0.8, amphW: 0.8, interceptBonus: 0.12 },
+        { id: 'COVERT',   label: '奇襲工作型',   missileW: 0.85, juggW: 0.8, bombW: 1.0, airW: 2.0, amphW: 1.8, interceptBonus: 0.04 },
+        { id: 'TOTAL',    label: '総力決戦型',   missileW: 1.1,  juggW: 1.5, bombW: 1.2, airW: 1.1, amphW: 1.1, interceptBonus: 0.05 }
+      ];
+
+      const RED_COMMANDER_NAMES = [
+        '紅蓮・黒田元帥', '朱雀・赤城将軍', '緋村・烈火司令', '真紅・ヴァルキリー',
+        '炎帝・橘大将', '焔・クロイツ司令', '紅玉・鬼塚元帥'
+      ];
+
+      const BLUE_COMMANDER_NAMES = [
+        '蒼穹・蒼井提督', '氷刃・水無月将軍', '碧海・アズール司令', '紺碧・バルバロッサ',
+        '深淵・氷室大将', '蒼雷・ゼファー司令', '群青・黒瀬元帥'
+      ];
+
+      const BASE_SPECS = {
+        CAPITAL:  { label: '首都',     radius: 1.65, maxCap: 190, spawnInterval: 1.7,  gaugeRate: 1.1, value: 14, canIntercept: true },
+        FORTRESS: { label: '要塞',     radius: 1.38, maxCap: 130, spawnInterval: 2.25, gaugeRate: 0.7, value: 9,  canIntercept: true },
+        SILO:     { label: 'サイロ',   radius: 1.18, maxCap: 95,  spawnInterval: 2.85, gaugeRate: 2.2, value: 10, canIntercept: true },
+        SUPPLY:   { label: '補給基地', radius: 1.05, maxCap: 75,  spawnInterval: 1.55, gaugeRate: 0.5, value: 6,  canIntercept: false }
+      };
+
+      const UNIT_SPECS = [
+        // 0: Infantry
+        { name: '歩兵',     hp: 36,  speed: 3.1, range: 2.1, damage: 8.5,  fireRate: 0.62, baseCap: 10, aoe: 0 },
+        // 1: Raider
+        { name: '強襲隊',   hp: 24,  speed: 4.9, range: 1.8, damage: 7.2,  fireRate: 0.45, baseCap: 9,  aoe: 0 },
+        // 2: Artillery
+        { name: '砲兵',     hp: 44,  speed: 2.0, range: 4.1, damage: 18.0, fireRate: 1.2,  baseCap: 16, aoe: 1.1 },
+        // 3: Juggernaut (Super-Heavy Mobile Fortress Boss)
+        { name: '超重戦車', hp: 520, speed: 1.55, range: 4.5, damage: 34.0, fireRate: 1.05, baseCap: 45, aoe: 2.1 }
+      ];
+
+      const THEME_PALETTES = {
+        dark: {
+          bg: '#060a13',
+          waterDeep: [8, 16, 32],
+          waterCoast: [15, 31, 56],
+          plains: [23, 33, 50],
+          forest: [19, 44, 42],
+          forestTree: 'rgba(52, 168, 120, 0.34)',
+          mountain: [43, 52, 70],
+          mountainLine: 'rgba(148, 163, 184, 0.36)',
+          bridge: '#334663',
+          bridgeStripe: 'rgba(203, 213, 225, 0.35)',
+          brokenBridge: '#281d22',
+          crater: 'rgba(15, 11, 14, 0.72)',
+          gridLine: 'rgba(148, 163, 184, 0.065)',
+          frameLine: 'rgba(148, 163, 184, 0.28)',
+          tunnelGlow: '#fbbf24',
+          redTile: [196, 36, 68],
+          redIso: [110, 32, 48],
+          redBorder: 'rgba(255, 115, 142, 0.9)',
+          redMain: '#ff3b5c',
+          redCore: '#ffd4dc',
+          blueTile: [26, 108, 206],
+          blueIso: [30, 66, 112],
+          blueBorder: 'rgba(115, 198, 255, 0.9)',
+          blueMain: '#2997ff',
+          blueCore: '#d4ecff',
+          baseBack: 'rgba(7, 11, 20, 0.9)',
+          neutralBase: '#94a3b8'
+        },
+        light: {
+          bg: '#e7decb',
+          waterDeep: [164, 194, 212],
+          waterCoast: [184, 211, 224],
+          plains: [236, 228, 208],
+          forest: [204, 219, 188],
+          forestTree: 'rgba(65, 108, 62, 0.42)',
+          mountain: [188, 176, 155],
+          mountainLine: 'rgba(92, 76, 56, 0.45)',
+          bridge: '#9e8b70',
+          bridgeStripe: 'rgba(255, 250, 238, 0.55)',
+          brokenBridge: '#7c6556',
+          crater: 'rgba(78, 63, 50, 0.5)',
+          gridLine: 'rgba(92, 74, 50, 0.09)',
+          frameLine: 'rgba(92, 74, 50, 0.4)',
+          tunnelGlow: '#b45309',
+          redTile: [198, 42, 64],
+          redIso: [152, 82, 86],
+          redBorder: 'rgba(176, 20, 44, 0.9)',
+          redMain: '#c8233c',
+          redCore: '#fff1f3',
+          blueTile: [28, 102, 182],
+          blueIso: [78, 108, 146],
+          blueBorder: 'rgba(16, 74, 146, 0.9)',
+          blueMain: '#1a66b8',
+          blueCore: '#eef7ff',
+          baseBack: 'rgba(248, 243, 232, 0.94)',
+          neutralBase: '#6b5e4e'
+        }
+      };
+
+      // =======================================================================
+      // 2. DOM REFERENCES & GLOBAL SESSION STATE
+      // =======================================================================
+      const dom = {
+        wrapper: document.getElementById('canvas-wrapper'),
+        canvas: document.getElementById('sim-canvas'),
+        cutinStack: document.getElementById('cutin-stack'),
+        sideDrawer: document.getElementById('side-drawer'),
+        drawerGraphSec: document.getElementById('drawer-graph-sec'),
+        drawerLogSec: document.getElementById('drawer-log-sec'),
+        graphCanvas: document.getElementById('graph-canvas'),
+        graphIsoLabel: document.getElementById('graph-iso-label'),
+        chronicleList: document.getElementById('chronicle-list'),
+        logCountLabel: document.getElementById('log-count-label'),
+        campaignName: document.getElementById('campaign-name'),
+        mapLabel: document.getElementById('map-label'),
+        matchTimer: document.getElementById('match-timer'),
+        phaseBadge: document.getElementById('phase-badge'),
+        winsRed: document.getElementById('wins-red'),
+        winsBlue: document.getElementById('wins-blue'),
+        redPct: document.getElementById('red-pct'),
+        bluePct: document.getElementById('blue-pct'),
+        redCmdName: document.getElementById('red-cmd-name'),
+        redCmdTrait: document.getElementById('red-cmd-trait'),
+        blueCmdName: document.getElementById('blue-cmd-name'),
+        blueCmdTrait: document.getElementById('blue-cmd-trait'),
+        redStance: document.getElementById('red-stance'),
+        blueStance: document.getElementById('blue-stance'),
+        redGaugeFill: document.getElementById('red-gauge-fill'),
+        blueGaugeFill: document.getElementById('blue-gauge-fill'),
+        redGaugeNum: document.getElementById('red-gauge-num'),
+        blueGaugeNum: document.getElementById('blue-gauge-num'),
+        redBases: document.getElementById('red-bases'),
+        blueBases: document.getElementById('blue-bases'),
+        redUnits: document.getElementById('red-units'),
+        blueUnits: document.getElementById('blue-units'),
+        barRed: document.getElementById('bar-red'),
+        barBlue: document.getElementById('bar-blue'),
+        tickerBadge: document.getElementById('ticker-badge'),
+        tickerText: document.getElementById('ticker-text'),
+        resultOverlay: document.getElementById('result-overlay'),
+        resultCard: document.getElementById('result-card'),
+        resTitle: document.getElementById('res-title'),
+        resReason: document.getElementById('res-reason'),
+        resTime: document.getElementById('res-time'),
+        resMissiles: document.getElementById('res-missiles'),
+        resComeback: document.getElementById('res-comeback'),
+        resSpecials: document.getElementById('res-specials'),
+        resHighlights: document.getElementById('res-highlights'),
+        resCountdown: document.getElementById('res-countdown'),
+        btnResNext: document.getElementById('btn-res-next'),
+        btnPause: document.getElementById('btn-pause'),
+        speedBtns: document.querySelectorAll('.speed-btn'),
+        mapSelect: document.getElementById('map-select'),
+        btnNextCampaign: document.getElementById('btn-next-campaign'),
+        btnAutoNext: document.getElementById('btn-auto-next'),
+        btnLogToggle: document.getElementById('btn-log-toggle'),
+        btnGraphToggle: document.getElementById('btn-graph-toggle'),
+        btnSound: document.getElementById('btn-sound'),
+        btnTheme: document.getElementById('btn-theme')
+      };
+
+      const ctx = dom.canvas.getContext('2d');
+      const graphCtx = dom.graphCanvas.getContext('2d');
+      const terrainCanvas = document.createElement('canvas');
+      const terrainCtx = terrainCanvas.getContext('2d');
+
+      const session = {
+        paused: false,
+        speed: 1,
+        autoNext: true,
+        mapMode: 'random',
+        showLog: false,
+        showGraph: false,
+        soundEnabled: false,
+        theme: 'dark',
+        campaignNum: 0,
+        lastMapId: null,
+        wins: { [TEAM_RED]: 0, [TEAM_BLUE]: 0 },
+        dpr: Math.min(window.devicePixelRatio || 1, 2),
+        viewW: 0,
+        viewH: 0,
+        tileSize: 16,
+        offsetX: 0,
+        offsetY: 0
+      };
+
+      let world = null;
+
+      // =======================================================================
+      // 3. PROCEDURAL WEB AUDIO SYNTHESIZER (DEFAULT OFF, ZERO EXTERNAL ASSETS)
+      // =======================================================================
+      const sfx = (function () {
+        let actx = null;
+        let noiseBuf = null;
+
+        function ensureContext() {
+          if (!session.soundEnabled) return null;
+          if (!actx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return null;
+            actx = new AudioCtx();
+            // Create reusable white noise buffer
+            const len = actx.sampleRate * 1.2;
+            noiseBuf = actx.createBuffer(1, len, actx.sampleRate);
+            const data = noiseBuf.getChannelData(0);
+            for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+          }
+          if (actx.state === 'suspended') actx.resume();
+          return actx;
+        }
+
+        function playLaunch() {
+          const c = ensureContext();
+          if (!c) return;
+          const now = c.currentTime;
+          const src = c.createBufferSource();
+          src.buffer = noiseBuf;
+          const filter = c.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(520, now);
+          filter.frequency.exponentialRampToValueAtTime(1400, now + 0.45);
+          filter.Q.value = 3;
+          const gain = c.createGain();
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.08, now + 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+          src.connect(filter).connect(gain).connect(c.destination);
+          src.start(now);
+          src.stop(now + 0.56);
+        }
+
+        function playExplosion(big = false) {
+          const c = ensureContext();
+          if (!c) return;
+          const now = c.currentTime;
+          const dur = big ? 0.65 : 0.28;
+          // Sub-bass boom
+          const osc = c.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(big ? 115 : 150, now);
+          osc.frequency.exponentialRampToValueAtTime(28, now + dur);
+          const og = c.createGain();
+          og.gain.setValueAtTime(big ? 0.14 : 0.07, now);
+          og.gain.exponentialRampToValueAtTime(0.001, now + dur);
+          osc.connect(og).connect(c.destination);
+          osc.start(now);
+          osc.stop(now + dur);
+
+          // Filtered blast rumble
+          const src = c.createBufferSource();
+          src.buffer = noiseBuf;
+          const flt = c.createBiquadFilter();
+          flt.type = 'lowpass';
+          flt.frequency.setValueAtTime(big ? 680 : 520, now);
+          flt.frequency.exponentialRampToValueAtTime(90, now + dur);
+          const ng = c.createGain();
+          ng.gain.setValueAtTime(big ? 0.11 : 0.05, now);
+          ng.gain.exponentialRampToValueAtTime(0.001, now + dur);
+          src.connect(flt).connect(ng).connect(c.destination);
+          src.start(now);
+          src.stop(now + dur);
+        }
+
+        function playIntercept() {
+          const c = ensureContext();
+          if (!c) return;
+          const now = c.currentTime;
+          const osc = c.createOscillator();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(760, now);
+          osc.frequency.exponentialRampToValueAtTime(1480, now + 0.16);
+          const g = c.createGain();
+          g.gain.setValueAtTime(0.075, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+          osc.connect(g).connect(c.destination);
+          osc.start(now);
+          osc.stop(now + 0.23);
+        }
+
+        function playAlert(notes = [440, 587]) {
+          const c = ensureContext();
+          if (!c) return;
+          const now = c.currentTime;
+          notes.forEach((freq, idx) => {
+            const osc = c.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.11);
+            const g = c.createGain();
+            g.gain.setValueAtTime(0.001, now + idx * 0.11);
+            g.gain.linearRampToValueAtTime(0.06, now + idx * 0.11 + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.11 + 0.24);
+            osc.connect(g).connect(c.destination);
+            osc.start(now + idx * 0.11);
+            osc.stop(now + idx * 0.11 + 0.26);
+          });
+        }
+
+        return { ensureContext, playLaunch, playExplosion, playIntercept, playAlert };
+      })();
+
+      // =======================================================================
+      // 4. MATH, NOISE & UTILITY HELPERS
+      // =======================================================================
+      function rand(min, max) { return min + Math.random() * (max - min); }
+      function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
+      function pick(arr) { return arr[randInt(0, arr.length - 1)]; }
+      function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+      function distSq(x1, y1, x2, y2) { const dx = x1 - x2, dy = y1 - y2; return dx * dx + dy * dy; }
+      function teamName(t) { return t === TEAM_RED ? '紅軍' : t === TEAM_BLUE ? '蒼軍' : '中立'; }
+      function teamTone(t) { return t === TEAM_RED ? 'red' : t === TEAM_BLUE ? 'blue' : 'gold'; }
+
+      function isPassable(t) {
+        return t !== T_WATER && t !== T_MOUNTAIN && t !== T_BROKEN_BRIDGE;
+      }
+
+      function isClaimable(t) {
+        return t === T_PLAINS || t === T_FOREST || t === T_BRIDGE || t === T_CRATER || t === T_TUNNEL;
+      }
+
+      function formatTime(sec) {
+        const s = Math.max(0, Math.floor(sec));
+        return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+      }
+
+      function createNoise2D(seed) {
+        const perm = new Uint8Array(512);
+        let s = (seed >>> 0) || 1337;
+        for (let i = 0; i < 256; i++) perm[i] = i;
+        for (let i = 255; i > 0; i--) {
+          s = (s * 1664525 + 1013904223) >>> 0;
+          const j = s % (i + 1);
+          const tmp = perm[i]; perm[i] = perm[j]; perm[j] = tmp;
+        }
+        for (let i = 0; i < 256; i++) perm[i + 256] = perm[i];
+        const hash = (ix, iy) => perm[(perm[ix & 255] + (iy & 255)) & 255] / 255;
+        const sm = t => t * t * (3 - 2 * t);
+        function val(x, y) {
+          const ix = Math.floor(x), iy = Math.floor(y);
+          const fx = sm(x - ix), fy = sm(y - iy);
+          const a = hash(ix, iy), b = hash(ix + 1, iy), c = hash(ix, iy + 1), d = hash(ix + 1, iy + 1);
+          return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
+        }
+        return function fbm(x, y, oct = 3) {
+          let tot = 0, amp = 0.55, freq = 1, norm = 0;
+          for (let o = 0; o < oct; o++) {
+            tot += val(x * freq, y * freq) * amp;
+            norm += amp; amp *= 0.5; freq *= 2.02;
+          }
+          return tot / norm;
+        };
+      }
+
+      // =======================================================================
+      // 5. STORYTELLING: WAR CHRONICLE, TICKER & CUT-IN TOASTS
+      // =======================================================================
+      function logEvent(text, teamOrGold = 'sys', opts = {}) {
+        const { cutin = false, title = '', icon = '⚡', highlight = false } = opts;
+        const timeStr = world ? formatTime(world.elapsed) : '00:00';
+        const tone = teamOrGold === TEAM_RED ? 'red' : teamOrGold === TEAM_BLUE ? 'blue' : (teamOrGold === 'gold' ? 'gold' : 'sys');
+
+        // 1) Update Top News Ticker
+        const badgeLabel = teamOrGold === TEAM_RED ? '紅軍' : teamOrGold === TEAM_BLUE ? '蒼軍' : '速報';
+        dom.tickerBadge.textContent = badgeLabel;
+        dom.tickerBadge.className = 'ticker-badge ' + (tone === 'gold' ? 'sys' : tone);
+        dom.tickerText.textContent = text;
+
+        // 2) Record in War Chronicle Panel
+        if (world) {
+          const entry = { time: timeStr, tone, text, highlight };
+          world.chronicle.push(entry);
+          if (highlight) world.highlights.push(`[${timeStr}] ${text}`);
+          appendChronicleDOM(entry);
+        }
+
+        // 3) Optional Stylish Cut-In Toast on Canvas Edge
+        if (cutin) {
+          showCutIn(title || badgeLabel, text, icon, tone === 'sys' ? 'gold' : tone);
+        }
+      }
+
+      function appendChronicleDOM(entry) {
+        const div = document.createElement('div');
+        div.className = 'log-entry ' + (entry.tone === 'sys' ? '' : entry.tone);
+        div.innerHTML = `<span class="log-time">${entry.time}</span><span class="log-msg"></span>`;
+        div.querySelector('.log-msg').textContent = entry.text;
+        dom.chronicleList.insertBefore(div, dom.chronicleList.firstChild);
+        // Keep DOM light
+        while (dom.chronicleList.children.length > 80) {
+          dom.chronicleList.removeChild(dom.chronicleList.lastChild);
+        }
+        dom.logCountLabel.textContent = `${world.chronicle.length}件`;
+      }
+
+      function showCutIn(title, desc, icon, tone) {
+        const card = document.createElement('div');
+        card.className = `cutin-card ${tone}`;
+        card.innerHTML = `
+          <div class="cutin-icon">${icon}</div>
+          <div class="cutin-body">
+            <div class="cutin-title"></div>
+            <div class="cutin-desc"></div>
+          </div>
+        `;
+        card.querySelector('.cutin-title').textContent = title;
+        card.querySelector('.cutin-desc').textContent = desc;
+        dom.cutinStack.appendChild(card);
+
+        // Max 3 stacked cut-ins so map stays clean
+        while (dom.cutinStack.children.length > 3) {
+          dom.cutinStack.removeChild(dom.cutinStack.firstChild);
+        }
+
+        setTimeout(() => {
+          card.classList.add('fadeout');
+          setTimeout(() => { if (card.parentNode) card.parentNode.removeChild(card); }, 320);
+        }, 3600);
+      }
+
+      // =======================================================================
+      // 6. PROCEDURAL MAP GENERATOR (5 MAPS + TUNNELS + BRIDGES + SEA LANES)
+      // =======================================================================
+      function computeGridDimensions() {
+        const w = dom.wrapper.clientWidth || window.innerWidth;
+        const h = dom.wrapper.clientHeight || window.innerHeight;
+        const portrait = h > w * 1.1;
+        return portrait ? { cols: 44, rows: 62, portrait: true } : { cols: 66, rows: 42, portrait: false };
+      }
+
+      function pickMapPreset() {
+        if (session.mapMode !== 'random') {
+          return MAP_PRESETS.find(m => m.id === session.mapMode) || MAP_PRESETS[0];
+        }
+        const pool = MAP_PRESETS.filter(m => m.id !== session.lastMapId);
+        return pick(pool);
+      }
+
+      function generateCampaign() {
+        session.campaignNum++;
+        const { cols, rows, portrait } = computeGridDimensions();
+        const preset = pickMapPreset();
+        session.lastMapId = preset.id;
+
+        const size = cols * rows;
+        const terrain = new Uint8Array(size);
+        const origTerrain = new Uint8Array(size);
+        const owner = new Uint8Array(size);
+        const capFade = new Float32Array(size);
+        const isolated = new Uint8Array(size);
+        const tileNoise = new Float32Array(size);
+        const craterTimer = new Float32Array(size);
+        const bridgeRepair = new Float32Array(size); // >0 means broken bridge repairing
+
+        const seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
+        const fbm = createNoise2D(seed);
+        const fbm2 = createNoise2D(seed + 5381);
+        const idx = (x, y) => y * cols + x;
+
+        // Generate symmetric fair terrain
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            const nx = (x + 0.5) / cols;
+            const ny = (y + 0.5) / rows;
+            const n1 = fbm(nx * 4.2, ny * 4.2, 3);
+            const n2 = fbm((1 - nx) * 4.2, (1 - ny) * 4.2, 3);
+            const symN = (n1 + n2) * 0.5;
+
+            const m1 = fbm2(nx * 6.0 + 7, ny * 6.0 + 7, 3);
+            const m2 = fbm2((1 - nx) * 6.0 + 7, (1 - ny) * 6.0 + 7, 3);
+            const symM = (m1 + m2) * 0.5;
+
+            const i = idx(x, y);
+            tileNoise[i] = fbm2(nx * 14, ny * 14, 2);
+
+            const dx = (nx - 0.5) * 2;
+            const dy = (ny - 0.5) * 2;
+            const dCenter = Math.hypot(dx, dy);
+            const along = portrait ? ny : nx;   // Main front axis (Red -> Blue)
+            const across = portrait ? nx : ny;  // Flank axis
+
+            let t = T_PLAINS;
+
+            if (preset.id === 'strait') {
+              // Central sea strait with 3 strategic bridges + sea flanks for amphibious raids
+              const straitCurve = (symN - 0.5) * 0.11;
+              const distStrait = Math.abs(along - 0.5 + straitCurve);
+              if (across < 0.07 || across > 0.93 || along < 0.03 || along > 0.97) {
+                t = T_WATER;
+              } else if (distStrait < 0.068) {
+                const onBridge = Math.abs(across - 0.23) < 0.042 ||
+                                 Math.abs(across - 0.50) < 0.048 ||
+                                 Math.abs(across - 0.77) < 0.042;
+                t = onBridge ? T_BRIDGE : T_WATER;
+              } else if (symM > 0.69 && dCenter < 0.84) {
+                t = T_MOUNTAIN;
+              } else if (symN > 0.54) {
+                t = T_FOREST;
+              }
+            } else if (preset.id === 'tunnel') {
+              // Massive central mountain spine with narrow northern/southern passes + Secret Tunnels!
+              const spineCurve = (symN - 0.5) * 0.1;
+              const distSpine = Math.abs(along - 0.5 + spineCurve);
+              if (dCenter > 1.08) {
+                t = T_WATER;
+              } else if (distSpine < 0.08) {
+                const isPass = Math.abs(across - 0.14) < 0.05 || Math.abs(across - 0.86) < 0.05;
+                t = isPass ? T_PLAINS : T_MOUNTAIN;
+              } else if (symM > 0.72 && Math.abs(along - 0.5) > 0.16) {
+                t = T_MOUNTAIN;
+              } else if (symN > 0.52) {
+                t = T_FOREST;
+              }
+            } else if (preset.id === 'fortress') {
+              // Central fortress citadel ringed by a moat with 4 bridges + mountain bastions
+              const inCenter = dCenter < 0.28;
+              const inMoat = dCenter >= 0.28 && dCenter < 0.40;
+              const onBridge = Math.abs(dx) < 0.075 || Math.abs(dy) < 0.075;
+              if (dCenter > 1.07) {
+                t = T_WATER;
+              } else if (inCenter) {
+                t = (dCenter > 0.21 && !onBridge) ? T_MOUNTAIN : T_PLAINS;
+              } else if (inMoat) {
+                t = onBridge ? T_BRIDGE : T_WATER;
+              } else if (symM > 0.68 && dCenter > 0.52 && dCenter < 0.88) {
+                t = T_MOUNTAIN;
+              } else if (symN > 0.55) {
+                t = T_FOREST;
+              }
+            } else if (preset.id === 'archipelago') {
+              // Scenic island clusters surrounded by ocean + bridges & amphibious lanes
+              const wave = Math.sin(nx * Math.PI * 3.0) * Math.sin(ny * Math.PI * 3.0);
+              const landVal = symN * 0.72 + Math.abs(wave) * 0.38 - Math.max(0, dCenter - 0.86) * 1.5;
+              if (landVal < 0.53) {
+                t = T_WATER;
+              } else if (symM > 0.73) {
+                t = T_MOUNTAIN;
+              } else if (symN > 0.52) {
+                t = T_FOREST;
+              }
+            } else {
+              // Twin Continents separated by narrow central land-bridge & sea bays
+              const distMid = Math.abs(along - 0.5 + (symN - 0.5) * 0.08);
+              if (dCenter > 1.06) {
+                t = T_WATER;
+              } else if (distMid < 0.11) {
+                const isIsthmus = Math.abs(across - 0.5) < 0.085;
+                const isSideBridge = Math.abs(across - 0.19) < 0.036 || Math.abs(across - 0.81) < 0.036;
+                if (isIsthmus) t = T_PLAINS;
+                else if (isSideBridge) t = T_BRIDGE;
+                else t = T_WATER;
+              } else if (symM > 0.69 && dCenter < 0.85) {
+                t = T_MOUNTAIN;
+              } else if (symN > 0.54) {
+                t = T_FOREST;
+              }
+            }
+
+            terrain[i] = t;
+          }
+        }
+
+        function carveClearZone(cx, cy, rad) {
+          const r2 = rad * rad;
+          for (let dy = -Math.ceil(rad); dy <= Math.ceil(rad); dy++) {
+            for (let dx = -Math.ceil(rad); dx <= Math.ceil(rad); dx++) {
+              const tx = Math.round(cx + dx);
+              const ty = Math.round(cy + dy);
+              if (tx < 1 || tx >= cols - 1 || ty < 1 || ty >= rows - 1) continue;
+              if (dx * dx + dy * dy <= r2) {
+                const ii = idx(tx, ty);
+                if (terrain[ii] === T_WATER || terrain[ii] === T_MOUNTAIN) terrain[ii] = T_PLAINS;
+              }
+            }
+          }
+        }
+
+        // Place strategic bases symmetrically
+        const bases = [];
+        let baseId = 1;
+        function addBase(gx, gy, type, startOwner, name) {
+          const x = clamp(Math.round(gx), 3, cols - 4) + 0.5;
+          const y = clamp(Math.round(gy), 3, rows - 4) + 0.5;
+          carveClearZone(x, y, type === BASE_CAPITAL ? 4.1 : 2.5);
+          bases.push({
+            id: baseId++,
+            x, y,
+            tx: Math.floor(x),
+            ty: Math.floor(y),
+            type,
+            name,
+            owner: startOwner,
+            originalOwner: startOwner,
+            capture: startOwner === TEAM_NEUTRAL ? 0 : BASE_SPECS[type].maxCap,
+            capturingTeam: startOwner,
+            spawnTimer: rand(0.2, 1.1),
+            pulse: Math.random(),
+            underAttackTimer: 0
+          });
+        }
+
+        function addSymPair(nx, ny, type, ownerA, ownerB, nameA, nameB) {
+          const ax = portrait ? ny * cols : nx * cols;
+          const ay = portrait ? nx * rows : ny * rows;
+          addBase(ax, ay, type, ownerA, nameA);
+          addBase(cols - ax, rows - ay, type, ownerB, nameB);
+        }
+
+        const redCap = portrait ? { x: cols * 0.5, y: rows * 0.12 } : { x: cols * 0.11, y: rows * 0.5 };
+        const blueCap = portrait ? { x: cols * 0.5, y: rows * 0.88 } : { x: cols * 0.89, y: rows * 0.5 };
+        addBase(redCap.x, redCap.y, BASE_CAPITAL, TEAM_RED, '紅軍首都');
+        addBase(blueCap.x, blueCap.y, BASE_CAPITAL, TEAM_BLUE, '蒼軍首都');
+
+        if (preset.id === 'fortress') {
+          addBase(cols * 0.5, rows * 0.5, BASE_FORTRESS, TEAM_NEUTRAL, '中央大要塞');
+          addSymPair(0.24, 0.22, BASE_SILO, TEAM_RED, TEAM_BLUE, '西ミサイルサイロ', '東ミサイルサイロ');
+          addSymPair(0.25, 0.78, BASE_SUPPLY, TEAM_RED, TEAM_BLUE, '紅翼補給基地', '蒼翼補給基地');
+          addSymPair(0.50, 0.15, BASE_SUPPLY, TEAM_NEUTRAL, TEAM_NEUTRAL, '北門前哨基地', '南門前哨基地');
+        } else if (preset.id === 'tunnel') {
+          addSymPair(0.24, 0.24, BASE_SILO, TEAM_RED, TEAM_BLUE, '北西サイロ', '南東サイロ');
+          addSymPair(0.26, 0.76, BASE_FORTRESS, TEAM_RED, TEAM_BLUE, '西嶺要塞', '東嶺要塞');
+          addSymPair(0.38, 0.42, BASE_SUPPLY, TEAM_NEUTRAL, TEAM_NEUTRAL, '山麓補給基地A', '山麓補給基地B');
+          addSymPair(0.50, 0.14, BASE_FORTRESS, TEAM_NEUTRAL, TEAM_NEUTRAL, '北峠要塞', '南峠要塞');
+        } else if (preset.id === 'archipelago') {
+          addBase(cols * 0.5, rows * 0.5, BASE_FORTRESS, TEAM_NEUTRAL, '中央環礁要塞');
+          addSymPair(0.24, 0.22, BASE_SILO, TEAM_RED, TEAM_BLUE, '紅礁サイロ', '蒼礁サイロ');
+          addSymPair(0.28, 0.78, BASE_SUPPLY, TEAM_RED, TEAM_BLUE, '西群島補給港', '東群島補給港');
+          addSymPair(0.50, 0.20, BASE_SUPPLY, TEAM_NEUTRAL, TEAM_NEUTRAL, '北環礁基地', '南環礁基地');
+        } else if (preset.id === 'twin') {
+          addBase(cols * 0.5, rows * 0.5, BASE_FORTRESS, TEAM_NEUTRAL, '中央地峡要塞');
+          addSymPair(0.23, 0.25, BASE_SILO, TEAM_RED, TEAM_BLUE, '大陸西サイロ', '大陸東サイロ');
+          addSymPair(0.25, 0.76, BASE_SUPPLY, TEAM_RED, TEAM_BLUE, '西大陸補給廠', '東大陸補給廠');
+          addSymPair(0.36, 0.50, BASE_SUPPLY, TEAM_NEUTRAL, TEAM_NEUTRAL, '西橋頭堡', '東橋頭堡');
+        } else {
+          // Strait
+          addSymPair(0.24, 0.22, BASE_SILO, TEAM_RED, TEAM_BLUE, '紅海サイロ', '蒼海サイロ');
+          addSymPair(0.26, 0.78, BASE_SUPPLY, TEAM_RED, TEAM_BLUE, '紅南補給基地', '蒼北補給基地');
+          addSymPair(0.38, 0.50, BASE_FORTRESS, TEAM_NEUTRAL, TEAM_NEUTRAL, '西岸要塞', '東岸要塞');
+          addSymPair(0.50, 0.23, BASE_SUPPLY, TEAM_NEUTRAL, TEAM_NEUTRAL, '北海峡橋頭堡', '南海峡橋頭堡');
+        }
+
+        // Guarantee full BFS connectivity between all bases via bridges/passes
+        ensureConnectivity(terrain, cols, rows, bases);
+
+        // Pre-plan 1–2 Secret Tunnels / Hidden Mountain Passes
+        const tunnels = planSecretTunnels(terrain, cols, rows, portrait, preset.id);
+
+        // Backup original terrain (for bridge repair / crater healing)
+        origTerrain.set(terrain);
+
+        // Count claimable tiles & paint starting zones
+        let claimableTiles = 0;
+        for (let i = 0; i < size; i++) {
+          if (isClaimable(terrain[i])) claimableTiles++;
+        }
+
+        for (const b of bases) {
+          if (b.owner === TEAM_NEUTRAL) continue;
+          const r = b.type === BASE_CAPITAL ? 5.6 : 3.4;
+          const r2 = r * r;
+          for (let dy = -Math.ceil(r); dy <= Math.ceil(r); dy++) {
+            for (let dx = -Math.ceil(r); dx <= Math.ceil(r); dx++) {
+              const tx = b.tx + dx, ty = b.ty + dy;
+              if (tx < 0 || tx >= cols || ty < 0 || ty >= rows) continue;
+              const ii = idx(tx, ty);
+              if (isClaimable(terrain[ii]) && dx * dx + dy * dy <= r2) {
+                owner[ii] = b.owner;
+                capFade[ii] = 1;
+              }
+            }
+          }
+        }
+
+        // Generate Campaign Name & AI Commanders
+        const campaignTitle = `第${session.campaignNum}次 ${pick(preset.titles)}`;
+        const redDoc = pick(COMMANDER_DOCTRINES);
+        const blueDoc = pick(COMMANDER_DOCTRINES);
+        const redCmdName = pick(RED_COMMANDER_NAMES);
+        const blueCmdName = pick(BLUE_COMMANDER_NAMES);
+
+        world = {
+          cols, rows, size, portrait, preset,
+          campaignTitle,
+          terrain, origTerrain, tileNoise,
+          owner, capFade, isolated,
+          craterTimer, bridgeRepair,
+          claimableTiles: Math.max(1, claimableTiles),
+          bases,
+          tunnels,
+          units: [],
+          tracers: [],
+          particles: [],
+          shockwaves: [],
+          missiles: [],
+          interceptors: [],
+          aircraft: [],      // Airborne transports & Carpet bombers
+          paratroopers: [],  // Falling parachutists
+          boats: [],         // Amphibious landing craft
+          spatialGrid: Array.from({ length: size }, () => []),
+          flow: {
+            [TEAM_RED]:  { obj: new Int16Array(size), front: new Int16Array(size), defend: new Int16Array(size) },
+            [TEAM_BLUE]: { obj: new Int16Array(size), front: new Int16Array(size), defend: new Int16Array(size) }
+          },
+          ai: {
+            [TEAM_RED]: {
+              name: redCmdName,
+              doctrine: redDoc,
+              stance: STANCES.EXPAND,
+              gauge: 22,
+              decisionTimer: 1.8,
+              mobilizationTimer: 0,
+              juggernautCooldown: 0,
+              partisanCooldown: 24,
+              minPct: 100
+            },
+            [TEAM_BLUE]: {
+              name: blueCmdName,
+              doctrine: blueDoc,
+              stance: STANCES.EXPAND,
+              gauge: 22,
+              decisionTimer: 2.1,
+              mobilizationTimer: 0,
+              juggernautCooldown: 0,
+              partisanCooldown: 24,
+              minPct: 100
+            }
+          },
+          metrics: {
+            missilesFired: 0,
+            missilesIntercepted: 0,
+            mobilizations: 0,
+            juggernauts: 0,
+            bridgesBroken: 0,
+            tunnelsOpened: 0,
+            casualties: 0
+          },
+          chronicle: [],
+          highlights: [],
+          history: [],
+          elapsed: 0,
+          flowTimer: 0,
+          supplyTimer: 0,
+          hudTimer: 0,
+          graphTimer: 0,
+          tunnelEventTimer: rand(24, 38),
+          partisanCheckTimer: 18,
+          amphibiousTimer: rand(16, 26),
+          escalationStage: 0,
+          shakeMag: 0,
+          terrainDirty: false,
+          stats: {
+            redTiles: 0, blueTiles: 0, redPct: 0, bluePct: 0,
+            redBases: 0, blueBases: 0, redUnits: 0, blueUnits: 0, isolatedCount: 0
+          },
+          winner: TEAM_NEUTRAL,
+          winReason: '',
+          nextCountdown: 5.0
+        };
+
+        // Initial deployment squads
+        for (const b of world.bases) {
+          if (b.owner === TEAM_NEUTRAL) continue;
+          const cnt = b.type === BASE_CAPITAL ? 11 : 4;
+          for (let k = 0; k < cnt; k++) {
+            const ut = k < cnt - 3 ? U_INFANTRY : (k < cnt - 1 ? U_RAIDER : U_ARTILLERY);
+            spawnUnit(b.owner, ut, b.x + rand(-1.8, 1.8), b.y + rand(-1.8, 1.8));
+          }
+        }
+
+        // Clear UI overlays & Chronicle
+        dom.chronicleList.innerHTML = '';
+        dom.cutinStack.innerHTML = '';
+        dom.resultOverlay.classList.remove('show');
+        dom.phaseBadge.classList.remove('active');
+        dom.campaignName.textContent = campaignTitle;
+        dom.mapLabel.textContent = preset.name;
+        dom.redCmdName.textContent = redCmdName;
+        dom.redCmdTrait.textContent = redDoc.label;
+        dom.blueCmdName.textContent = blueCmdName;
+        dom.blueCmdTrait.textContent = blueDoc.label;
+        dom.redStance.textContent = STANCES.EXPAND.label;
+        dom.blueStance.textContent = STANCES.EXPAND.label;
+
+        recomputeAllFlowFields();
+        updateSupplyLines();
+        recomputeStats();
+        recordHistory();
+        handleResize();
+        updateHUD();
+
+        logEvent(`【${campaignTitle}】開戦！ ${redCmdName}（${redDoc.label}）vs ${blueCmdName}（${blueDoc.label}）`, 'gold', {
+          cutin: true, title: campaignTitle, icon: '⚔️', highlight: true
+        });
+      }
+
+      function ensureConnectivity(terrain, cols, rows, bases) {
+        if (bases.length < 2) return;
+        const idx = (x, y) => y * cols + x;
+        const visited = new Uint8Array(cols * rows);
+        const q = new Int32Array(cols * rows);
+
+        function flood(sx, sy) {
+          visited.fill(0);
+          let h = 0, t = 0;
+          const st = idx(sx, sy);
+          visited[st] = 1; q[t++] = st;
+          while (h < t) {
+            const cur = q[h++];
+            const cx = cur % cols, cy = (cur / cols) | 0;
+            const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+            for (let d = 0; d < 4; d++) {
+              const nx = cx + dirs[d][0], ny = cy + dirs[d][1];
+              if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
+              const ni = idx(nx, ny);
+              if (!visited[ni] && isPassable(terrain[ni])) {
+                visited[ni] = 1; q[t++] = ni;
+              }
+            }
+          }
+        }
+
+        const root = bases[0];
+        for (let p = 0; p < bases.length; p++) {
+          flood(root.tx, root.ty);
+          const disc = bases.find(b => !visited[idx(b.tx, b.ty)]);
+          if (!disc) break;
+          let bestD = Infinity, bx = root.tx, by = root.ty;
+          for (let y = 1; y < rows - 1; y++) {
+            for (let x = 1; x < cols - 1; x++) {
+              if (!visited[idx(x, y)]) continue;
+              const d = distSq(x, y, disc.tx, disc.ty);
+              if (d < bestD) { bestD = d; bx = x; by = y; }
+            }
+          }
+          const steps = Math.max(Math.abs(bx - disc.tx), Math.abs(by - disc.ty)) * 2 + 1;
+          for (let s = 0; s <= steps; s++) {
+            const frac = s / steps;
+            const gx = Math.round(disc.tx + (bx - disc.tx) * frac);
+            const gy = Math.round(disc.ty + (by - disc.ty) * frac);
+            for (let oy = 0; oy <= 1; oy++) {
+              for (let ox = 0; ox <= 1; ox++) {
+                const tx = clamp(gx + ox, 1, cols - 2);
+                const ty = clamp(gy + oy, 1, rows - 2);
+                const ii = idx(tx, ty);
+                if (terrain[ii] === T_WATER) terrain[ii] = T_BRIDGE;
+                else if (terrain[ii] === T_MOUNTAIN) terrain[ii] = T_PLAINS;
+              }
+            }
+          }
+        }
+      }
+
+      /**
+       * Plans 1–2 secret underground tunnel corridors across central mountains/barriers.
+       * They remain sealed at start and are dramatically breached mid-game!
+       */
+      function planSecretTunnels(terrain, cols, rows, portrait, mapId) {
+        const tunnels = [];
+        const idx = (x, y) => y * cols + x;
+        const lanes = mapId === 'tunnel' ? [0.34, 0.66] : [0.38, 0.62];
+
+        for (let k = 0; k < lanes.length; k++) {
+          const across = lanes[k];
+          const pts = [];
+          const steps = 16;
+          for (let s = 0; s <= steps; s++) {
+            const along = 0.34 + (s / steps) * 0.32;
+            const gx = clamp(Math.round((portrait ? across : along) * cols), 3, cols - 4);
+            const gy = clamp(Math.round((portrait ? along : across) * rows), 3, rows - 4);
+            // Avoid duplicating exact same tile
+            if (pts.length === 0 || pts[pts.length - 1].x !== gx || pts[pts.length - 1].y !== gy) {
+              pts.push({ x: gx, y: gy });
+            }
+          }
+          // Ensure start & end are on land (not water)
+          const start = pts[0];
+          const end = pts[pts.length - 1];
+          if (terrain[idx(start.x, start.y)] === T_WATER || terrain[idx(end.x, end.y)] === T_WATER) continue;
+
+          // Make sure at least part of the path crosses mountains or forms a real shortcut
+          const hasObstacle = pts.some(p => terrain[idx(p.x, p.y)] === T_MOUNTAIN || terrain[idx(p.x, p.y)] === T_WATER);
+          if (!hasObstacle && mapId !== 'tunnel') continue;
+
+          tunnels.push({
+            id: k + 1,
+            name: k === 0 ? (portrait ? '西側地下坑道' : '北部地下坑道') : (portrait ? '東側隠し山道' : '南部隠し山道'),
+            pts,
+            open: false,
+            openedBy: TEAM_NEUTRAL
+          });
+        }
+        return tunnels;
+      }
+
+      // =======================================================================
+      // 7. FLOW-FIELD PATHFINDING & SUPPLY LINE ENCIRCLEMENT DETECTION
+      // =======================================================================
+      const bfsQueue = new Int32Array(5000);
+
+      function buildFlowField(dest, seeds) {
+        const { cols, rows, size, terrain } = world;
+        dest.fill(9999);
+        let h = 0, t = 0;
+        for (let i = 0; i < seeds.length; i++) {
+          const si = seeds[i];
+          if (si >= 0 && si < size && isPassable(terrain[si]) && dest[si] === 9999) {
+            dest[si] = 0;
+            bfsQueue[t++] = si;
+          }
+        }
+        while (h < t) {
+          const cur = bfsQueue[h++];
+          const d = dest[cur];
+          const cx = cur % cols;
+          const cy = (cur / cols) | 0;
+
+          const check = (ni) => {
+            const tr = terrain[ni];
+            if (!isPassable(tr)) return;
+            const cost = tr === T_CRATER ? 3 : (tr === T_FOREST ? 2 : 1);
+            if (dest[ni] > d + cost) {
+              dest[ni] = d + cost;
+              bfsQueue[t++] = ni;
+            }
+          };
+          if (cx > 0) check(cur - 1);
+          if (cx + 1 < cols) check(cur + 1);
+          if (cy > 0) check(cur - cols);
+          if (cy + 1 < rows) check(cur + cols);
+        }
+      }
+
+      function recomputeAllFlowFields() {
+        const { cols, rows, terrain, owner, bases } = world;
+        const idx = (x, y) => y * cols + x;
+
+        for (const team of [TEAM_RED, TEAM_BLUE]) {
+          const enemy = team === TEAM_RED ? TEAM_BLUE : TEAM_RED;
+          const stance = world.ai[team].stance;
+          const fSet = world.flow[team];
+
+          const targets = bases.filter(b => b.owner !== team);
+          const objSeeds = [];
+          if (targets.length > 0) {
+            const myBases = bases.filter(b => b.owner === team);
+            let cx = cols * 0.5, cy = rows * 0.5;
+            if (myBases.length) {
+              cx = myBases.reduce((s, b) => s + b.x, 0) / myBases.length;
+              cy = myBases.reduce((s, b) => s + b.y, 0) / myBases.length;
+            }
+            let bestB = targets[0], bestScore = -Infinity;
+            for (const b of targets) {
+              let sc = BASE_SPECS[b.type].value * 3.0 - Math.hypot(b.x - cx, b.y - cy) * 0.55;
+              if (stance === STANCES.EXPAND && b.owner === TEAM_NEUTRAL) sc += 22;
+              if (stance === STANCES.BLITZ && b.owner === enemy) sc += 18;
+              if (stance === STANCES.AMBUSH && (b.type === BASE_SILO || b.type === BASE_SUPPLY) && b.owner === enemy) sc += 24;
+              if (b.type === BASE_CAPITAL && world.elapsed > 75) sc += 18;
+              if (b.capturingTeam === team && b.capture > 10) sc += 16;
+              if (sc > bestScore) { bestScore = sc; bestB = b; }
+            }
+            objSeeds.push(idx(bestB.tx, bestB.ty));
+            if (stance === STANCES.EXPAND) {
+              for (const b of targets) if (b.owner === TEAM_NEUTRAL) objSeeds.push(idx(b.tx, b.ty));
+            }
+          }
+          buildFlowField(fSet.obj, objSeeds);
+
+          // Frontline border tiles
+          const frontSeeds = [];
+          for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+              const i = idx(x, y);
+              if (!isPassable(terrain[i]) || owner[i] === team) continue;
+              if ((x > 0 && owner[i - 1] === team) ||
+                  (x + 1 < cols && owner[i + 1] === team) ||
+                  (y > 0 && owner[i - cols] === team) ||
+                  (y + 1 < rows && owner[i + cols] === team)) {
+                frontSeeds.push(i);
+              }
+            }
+          }
+          if (!frontSeeds.length) {
+            for (const b of targets) frontSeeds.push(idx(b.tx, b.ty));
+          }
+          buildFlowField(fSet.front, frontSeeds);
+
+          // Defense seeds (threatened friendly bases)
+          const defSeeds = [];
+          for (const b of bases) {
+            if (b.owner === team && (b.underAttackTimer > 0 || b.capture < BASE_SPECS[b.type].maxCap * 0.85)) {
+              defSeeds.push(idx(b.tx, b.ty));
+            }
+          }
+          buildFlowField(fSet.defend, defSeeds.length ? defSeeds : (frontSeeds.length ? frontSeeds : objSeeds));
+        }
+      }
+
+      function updateSupplyLines() {
+        const { cols, rows, size, terrain, owner, isolated, bases } = world;
+        const idx = (x, y) => y * cols + x;
+        const supplied = new Uint8Array(size);
+
+        for (const team of [TEAM_RED, TEAM_BLUE]) {
+          let h = 0, t = 0;
+          for (const b of bases) {
+            if (b.owner !== team) continue;
+            const bi = idx(b.tx, b.ty);
+            if (!supplied[bi]) { supplied[bi] = 1; bfsQueue[t++] = bi; }
+          }
+          while (h < t) {
+            const cur = bfsQueue[h++];
+            const cx = cur % cols, cy = (cur / cols) | 0;
+            const step = (ni) => {
+              if (!supplied[ni] && owner[ni] === team && isPassable(terrain[ni])) {
+                supplied[ni] = 1; bfsQueue[t++] = ni;
+              }
+            };
+            if (cx > 0) step(cur - 1);
+            if (cx + 1 < cols) step(cur + 1);
+            if (cy > 0) step(cur - cols);
+            if (cy + 1 < rows) step(cur + cols);
+          }
+        }
+
+        let isoCnt = 0;
+        for (let i = 0; i < size; i++) {
+          if (owner[i] !== TEAM_NEUTRAL && !supplied[i]) {
+            isolated[i] = 1;
+            isoCnt++;
+            // Isolated pockets gradually collapse!
+            if (Math.random() < 0.085) {
+              owner[i] = TEAM_NEUTRAL;
+              world.capFade[i] = 0;
+              isolated[i] = 0;
+            }
+          } else {
+            isolated[i] = 0;
+          }
+        }
+        world.stats.isolatedCount = isoCnt;
+      }
+
+      // =======================================================================
+      // 8. GAME-CHANGERS, SPECIAL ROUTES & AUTONOMOUS AI COMMANDERS
+      // =======================================================================
+      function updateAICommandersAndEvents(dt) {
+        // Escalation stage progression (guarantees dramatic 1.5–3 min finish)
+        if (world.elapsed > 125 && world.escalationStage < 2) {
+          world.escalationStage = 2;
+          dom.phaseBadge.textContent = '最終決戦';
+          dom.phaseBadge.classList.add('active');
+          logEvent('最終決戦フェーズ突入！両軍の戦略ゲージ蓄積と戦線突破力が極大化！', 'gold', {
+            cutin: true, title: '最終決戦フェーズ', icon: '🔥', highlight: true
+          });
+          sfx.playAlert([523, 659, 784]);
+        } else if (world.elapsed > 75 && world.escalationStage < 1) {
+          world.escalationStage = 1;
+          dom.phaseBadge.textContent = '総力戦';
+          dom.phaseBadge.classList.add('active');
+          logEvent('総力戦フェーズへ移行！戦略兵器の投入ペースが加速しています', 'gold', {
+            cutin: true, title: '総力戦フェーズ', icon: '⚡'
+          });
+        }
+
+        const gaugeAccel = world.escalationStage === 2 ? 1.8 : (world.escalationStage === 1 ? 1.35 : 1.0);
+
+        for (const team of [TEAM_RED, TEAM_BLUE]) {
+          const ai = world.ai[team];
+          const myPct = team === TEAM_RED ? world.stats.redPct : world.stats.bluePct;
+          const enemyPct = team === TEAM_RED ? world.stats.bluePct : world.stats.redPct;
+          if (world.elapsed > 6 && myPct < ai.minPct) ai.minPct = myPct;
+
+          if (ai.mobilizationTimer > 0) ai.mobilizationTimer = Math.max(0, ai.mobilizationTimer - dt);
+          if (ai.juggernautCooldown > 0) ai.juggernautCooldown = Math.max(0, ai.juggernautCooldown - dt);
+
+          // Accumulate Strategy Gauge (bases + silos + underdog bonus)
+          let baseRate = 2.0;
+          for (const b of world.bases) {
+            if (b.owner === team) baseRate += BASE_SPECS[b.type].gaugeRate;
+          }
+          const underdogMult = myPct + 8 < enemyPct ? 1.48 : (myPct + 16 < enemyPct ? 1.85 : 1.0);
+          ai.gauge = Math.min(100, ai.gauge + baseRate * gaugeAccel * underdogMult * dt);
+
+          // Fire Autonomous Trump Card when Strategy Gauge hits 100!
+          if (ai.gauge >= 100 && world.winner === TEAM_NEUTRAL) {
+            ai.gauge = 0;
+            executeTrumpCard(team);
+          }
+
+          // Periodic Stance Evaluation
+          ai.decisionTimer -= dt;
+          if (ai.decisionTimer <= 0) {
+            ai.decisionTimer = rand(5.5, 9.0);
+            const myBases = world.bases.filter(b => b.owner === team);
+            const threatened = myBases.some(b => b.underAttackTimer > 0);
+            const neutralPct = Math.max(0, 100 - myPct - enemyPct);
+
+            let next = ai.stance;
+            if (neutralPct > 28 && world.elapsed < 26) next = STANCES.EXPAND;
+            else if (threatened && myPct < enemyPct + 8 && Math.random() < 0.6) next = STANCES.DEFEND;
+            else if (myPct + 10 < enemyPct) next = Math.random() < 0.6 ? STANCES.COUNTER : STANCES.AMBUSH;
+            else if (ai.doctrine.id === 'COVERT' && Math.random() < 0.45) next = STANCES.AMBUSH;
+            else if (ai.doctrine.id === 'BLITZ' && Math.random() < 0.55) next = STANCES.BLITZ;
+            else next = pick([STANCES.BLITZ, STANCES.AMBUSH, STANCES.EXPAND, STANCES.DEFEND]);
+
+            if (next.id !== ai.stance.id) {
+              ai.stance = next;
+              (team === TEAM_RED ? dom.redStance : dom.blueStance).textContent = next.label;
+              logEvent(`${teamName(team)}（${ai.name}）が作戦を「${next.label}」へ変更`, team);
+            }
+          }
+        }
+
+        // Special Route 1: Secret Underground Tunnel Opening mid-match
+        world.tunnelEventTimer -= dt;
+        if (world.tunnelEventTimer <= 0 && world.winner === TEAM_NEUTRAL) {
+          world.tunnelEventTimer = rand(32, 46);
+          const sealed = world.tunnels.filter(t => !t.open);
+          if (sealed.length > 0) {
+            const tunnel = pick(sealed);
+            // Slightly favor underdog to open secret flanking tunnel
+            const opener = world.stats.redPct < world.stats.bluePct ? TEAM_RED : TEAM_BLUE;
+            openSecretTunnel(tunnel, opener);
+          }
+        }
+
+        // Special Route 2: Periodic Amphibious Sea-Lane Raids on maritime maps
+        world.amphibiousTimer -= dt;
+        if (world.amphibiousTimer <= 0 && world.winner === TEAM_NEUTRAL) {
+          world.amphibiousTimer = rand(22, 34);
+          const team = Math.random() < 0.5 ? TEAM_RED : TEAM_BLUE;
+          launchAmphibiousRaid(team);
+        }
+
+        // Game-Changer 5: Rear-Area Partisan Uprising when one side over-expands
+        world.partisanCheckTimer -= dt;
+        if (world.partisanCheckTimer <= 0 && world.winner === TEAM_NEUTRAL) {
+          world.partisanCheckTimer = 14;
+          const diff = world.stats.redPct - world.stats.bluePct;
+          if (diff > 20 && world.stats.redPct > 55 && Math.random() < 0.65) {
+            triggerPartisanUprising(TEAM_BLUE);
+          } else if (diff < -20 && world.stats.bluePct > 55 && Math.random() < 0.65) {
+            triggerPartisanUprising(TEAM_RED);
+          }
+        }
+      }
+
+      /**
+       * Selects and fires a dramatic Game-Changer tailored to battle state & commander doctrine!
+       */
+      function executeTrumpCard(team) {
+        const ai = world.ai[team];
+        const doc = ai.doctrine;
+        const myPct = team === TEAM_RED ? world.stats.redPct : world.stats.bluePct;
+        const enemyPct = team === TEAM_RED ? world.stats.bluePct : world.stats.redPct;
+        const hasJugg = world.units.some(u => u.team === team && u.type === U_JUGGERNAUT && !u.dead);
+
+        // Emergency Total Mobilization if badly losing or late-game showdown
+        if ((myPct + 14 < enemyPct || myPct < 30) && ai.mobilizationTimer <= 0 && Math.random() < 0.68) {
+          triggerTotalMobilization(team);
+          return;
+        }
+
+        // Build weighted menu of trump cards
+        const options = [
+          { id: 'missile',    w: 2.2 * doc.missileW },
+          { id: 'carpet',     w: 1.5 * doc.bombW },
+          { id: 'airborne',   w: 1.6 * doc.airW },
+          { id: 'amphibious', w: 1.2 * doc.amphW },
+          { id: 'mobilize',   w: (world.escalationStage >= 1 ? 1.4 : 0.7) * (ai.mobilizationTimer <= 0 ? 1 : 0) },
+          { id: 'juggernaut', w: (!hasJugg && ai.juggernautCooldown <= 0) ? 1.55 * doc.juggW : 0 }
+        ];
+
+        const totalW = options.reduce((s, o) => s + o.w, 0);
+        let r = Math.random() * totalW;
+        let chosen = 'missile';
+        for (const o of options) {
+          r -= o.w;
+          if (r <= 0) { chosen = o.id; break; }
+        }
+
+        if (chosen === 'missile') launchBallisticMissile(team);
+        else if (chosen === 'juggernaut') deployJuggernaut(team);
+        else if (chosen === 'carpet') launchCarpetBombing(team);
+        else if (chosen === 'airborne') launchAirborneDrop(team);
+        else if (chosen === 'amphibious') {
+          if (!launchAmphibiousRaid(team)) launchAirborneDrop(team);
+        } else {
+          triggerTotalMobilization(team);
+        }
+      }
+
+      // ---- 1) BALLISTIC MISSILE + INTERCEPTOR SYSTEM ----
+      function launchBallisticMissile(team) {
+        const enemy = team === TEAM_RED ? TEAM_BLUE : TEAM_RED;
+        const launchers = world.bases.filter(b => b.owner === team && (b.type === BASE_SILO || b.type === BASE_CAPITAL));
+        const origin = launchers.length ? pick(launchers) : world.bases.find(b => b.owner === team);
+        if (!origin) return;
+
+        // Target enemy juggernaut, dense troop cluster, or high-value enemy base
+        let tx = world.cols * 0.5, ty = world.rows * 0.5, targetDesc = '敵前線密集地';
+        const enemyJugg = world.units.find(u => u.team === enemy && u.type === U_JUGGERNAUT && !u.dead);
+        const enemyBases = world.bases.filter(b => b.owner === enemy);
+
+        if (enemyJugg && Math.random() < 0.75) {
+          tx = enemyJugg.x; ty = enemyJugg.y; targetDesc = `${teamName(enemy)}の超重戦車`;
+        } else if (enemyBases.length > 0 && Math.random() < 0.65) {
+          const tb = pick(enemyBases);
+          tx = tb.x; ty = tb.y; targetDesc = `「${tb.name}」`;
+        } else {
+          const enemyUnits = world.units.filter(u => u.team === enemy && !u.dead);
+          if (enemyUnits.length > 0) {
+            const sample = pick(enemyUnits);
+            tx = sample.x; ty = sample.y; targetDesc = `${teamName(enemy)}主力部隊`;
+          }
+        }
+
+        const dist = Math.hypot(tx - origin.x, ty - origin.y);
+        const duration = clamp(dist * 0.085, 2.2, 4.2);
+
+        // Determine if defense network launches an Interceptor!
+        const defBases = world.bases.filter(b => b.owner === enemy && BASE_SPECS[b.type].canIntercept);
+        const interceptChance = defBases.length > 0
+          ? clamp(0.32 + world.ai[enemy].doctrine.interceptBonus + (defBases.some(b => b.type === BASE_SILO) ? 0.1 : 0), 0, 0.62)
+          : 0;
+        const willIntercept = Math.random() < interceptChance;
+        const interceptorBase = willIntercept ? defBases.sort((a, b) => distSq(a.x, a.y, tx, ty) - distSq(b.x, b.y, tx, ty))[0] : null;
+
+        world.missiles.push({
+          team,
+          sx: origin.x, sy: origin.y,
+          tx, ty,
+          x: origin.x, y: origin.y, z: 0,
+          t: 0,
+          duration,
+          targetDesc,
+          willIntercept,
+          interceptorLaunched: false,
+          interceptorBase,
+          trail: [],
+          done: false
+        });
+
+        world.metrics.missilesFired++;
+        spawnShockwave(origin.x, origin.y, '#fbbf24', 2.4);
+        sfx.playLaunch();
+        logEvent(`${teamName(team)}が${origin.name}より弾道ミサイルを発射！目標：${targetDesc}`, team, {
+          cutin: true, title: '🚀 弾道ミサイル発射！', icon: '🚀', highlight: true
+        });
+      }
+
+      // ---- 2) TOTAL MOBILIZATION ----
+      function triggerTotalMobilization(team) {
+        const myBases = world.bases.filter(b => b.owner === team);
+        if (!myBases.length) return;
+        world.ai[team].mobilizationTimer = 13.0;
+        world.metrics.mobilizations++;
+
+        let spawned = 0;
+        for (const b of myBases) {
+          const wave = b.type === BASE_CAPITAL ? 12 : 6;
+          for (let i = 0; i < wave; i++) {
+            const ut = i % 5 === 0 ? U_ARTILLERY : (i % 2 === 0 ? U_RAIDER : U_INFANTRY);
+            spawnUnit(team, ut, b.x + rand(-1.6, 1.6), b.y + rand(-1.6, 1.6));
+            spawned++;
+          }
+          spawnShockwave(b.x, b.y, team === TEAM_RED ? '#ff3b5c' : '#2997ff', 4.6);
+        }
+        sfx.playAlert([392, 523, 659]);
+        logEvent(`${teamName(team)}が「国家総動員令」を発令！予備役${spawned}部隊が一斉出撃し全軍の戦闘力が急上昇！`, team, {
+          cutin: true, title: '📣 国家総動員令発令！', icon: '📣', highlight: true
+        });
+      }
+
+      // ---- 3) SUPER-HEAVY JUGGERNAUT ----
+      function deployJuggernaut(team) {
+        const cap = world.bases.find(b => b.owner === team && b.type === BASE_CAPITAL)
+                 || world.bases.find(b => b.owner === team);
+        if (!cap) return;
+        world.ai[team].juggernautCooldown = 48;
+        world.metrics.juggernauts++;
+
+        spawnUnit(team, U_JUGGERNAUT, cap.x + rand(-1, 1), cap.y + rand(-1, 1), true);
+        // Escort squad
+        for (let i = 0; i < 5; i++) {
+          spawnUnit(team, U_INFANTRY, cap.x + rand(-1.8, 1.8), cap.y + rand(-1.8, 1.8));
+        }
+        spawnShockwave(cap.x, cap.y, '#fbbf24', 5.2);
+        sfx.playAlert([220, 277, 330]);
+        logEvent(`${teamName(team)}の決戦兵器「超重戦車ジャガーノート」が${cap.name}より出撃！`, team, {
+          cutin: true, title: '🛡️ 決戦兵器「超重戦車」出撃', icon: '🛡️', highlight: true
+        });
+      }
+
+      // ---- 4) CARPET BOMBING SQUADRON ----
+      function launchCarpetBombing(team) {
+        const enemy = team === TEAM_RED ? TEAM_BLUE : TEAM_RED;
+        // Find enemy hotspot or frontline center
+        const enemyUnits = world.units.filter(u => u.team === enemy && !u.dead);
+        let cx = world.cols * 0.5, cy = world.rows * 0.5;
+        if (enemyUnits.length > 0) {
+          const u = pick(enemyUnits);
+          cx = u.x; cy = u.y;
+        }
+        const horiz = !world.portrait;
+        const fromStart = team === TEAM_RED;
+        const offsets = [-2.2, 0, 2.2];
+
+        for (let k = 0; k < 3; k++) {
+          const sx = horiz ? (fromStart ? -3 : world.cols + 3) : clamp(cx + offsets[k], 2, world.cols - 2);
+          const sy = horiz ? clamp(cy + offsets[k], 2, world.rows - 2) : (fromStart ? -3 : world.rows + 3);
+          const ex = horiz ? (fromStart ? world.cols + 4 : -4) : sx;
+          const ey = horiz ? sy : (fromStart ? world.rows + 4 : -4);
+          const ang = Math.atan2(ey - sy, ex - sx);
+          world.aircraft.push({
+            kind: 'bomber',
+            team,
+            x: sx - Math.cos(ang) * (k === 1 ? 0 : 1.6),
+            y: sy - Math.sin(ang) * (k === 1 ? 0 : 1.6),
+            vx: Math.cos(ang) * 14.5,
+            vy: Math.sin(ang) * 14.5,
+            ang,
+            bombStartX: cx,
+            bombStartY: cy,
+            bombTimer: 0,
+            bombsLeft: 5,
+            done: false
+          });
+        }
+        sfx.playLaunch();
+        logEvent(`${teamName(team)}の重爆撃機編隊が飛来！前線一帯へ絨毯爆撃を敢行！`, team, {
+          cutin: true, title: '✈️ 絨毯爆撃編隊 飛来', icon: '💣', highlight: true
+        });
+      }
+
+      // ---- 5) AIRBORNE PARATROOPER DROP ----
+      function launchAirborneDrop(team) {
+        const enemy = team === TEAM_RED ? TEAM_BLUE : TEAM_RED;
+        const enemyBases = world.bases.filter(b => b.owner === enemy);
+        let dzX = world.cols * (team === TEAM_RED ? 0.72 : 0.28);
+        let dzY = world.rows * rand(0.25, 0.75);
+        let dzName = '敵後方地帯';
+
+        if (enemyBases.length > 0) {
+          const nonCap = enemyBases.filter(b => b.type !== BASE_CAPITAL);
+          const targetBase = nonCap.length ? pick(nonCap) : pick(enemyBases);
+          // Find nearby land drop zone
+          dzX = clamp(targetBase.x + rand(-4, 4), 3, world.cols - 4);
+          dzY = clamp(targetBase.y + rand(-4, 4), 3, world.rows - 4);
+          if (!isPassable(world.terrain[(dzY | 0) * world.cols + (dzX | 0)])) {
+            dzX = targetBase.x; dzY = targetBase.y;
+          }
+          dzName = `「${targetBase.name}」後方`;
+        }
+
+        const sx = team === TEAM_RED ? -3 : world.cols + 3;
+        const sy = clamp(dzY + rand(-6, 6), 2, world.rows - 2);
+        const ang = Math.atan2(dzY - sy, dzX - sx);
+
+        world.aircraft.push({
+          kind: 'transport',
+          team,
+          x: sx, y: sy,
+          vx: Math.cos(ang) * 12.2,
+          vy: Math.sin(ang) * 12.2,
+          ang,
+          dzX, dzY,
+          dropped: false,
+          done: false
+        });
+        sfx.playAlert([587, 740]);
+        logEvent(`${teamName(team)}の輸送機が敵防空網を突破！${dzName}へ空挺部隊を降下！`, team, {
+          cutin: true, title: '🪂 空挺降下作戦', icon: '🪂', highlight: true
+        });
+      }
+
+      // ---- 6) SECRET UNDERGROUND TUNNEL OPENING ----
+      function openSecretTunnel(tunnel, openerTeam) {
+        tunnel.open = true;
+        tunnel.openedBy = openerTeam;
+        world.metrics.tunnelsOpened++;
+        const { cols, terrain, origTerrain, owner } = world;
+        const idx = (x, y) => y * cols + x;
+
+        for (const p of tunnel.pts) {
+          for (let oy = -1; oy <= 0; oy++) {
+            for (let ox = -1; ox <= 0; ox++) {
+              const tx = clamp(p.x + ox, 1, cols - 2);
+              const ty = clamp(p.y + oy, 1, world.rows - 2);
+              const ii = idx(tx, ty);
+              if (terrain[ii] === T_MOUNTAIN || terrain[ii] === T_WATER) {
+                terrain[ii] = T_TUNNEL;
+                origTerrain[ii] = T_TUNNEL;
+                world.claimableTiles++;
+              }
+            }
+          }
+        }
+        world.terrainDirty = true;
+
+        // Spawn vanguard shock troops emerging from the enemy-side exit!
+        const exit = openerTeam === TEAM_RED ? tunnel.pts[tunnel.pts.length - 1] : tunnel.pts[0];
+        const entry = openerTeam === TEAM_RED ? tunnel.pts[0] : tunnel.pts[tunnel.pts.length - 1];
+        for (let i = 0; i < 11; i++) {
+          spawnUnit(openerTeam, i < 7 ? U_RAIDER : U_INFANTRY, exit.x + rand(-1.2, 1.2), exit.y + rand(-1.2, 1.2));
+        }
+        owner[idx(exit.x, exit.y)] = openerTeam;
+        spawnShockwave(entry.x + 0.5, entry.y + 0.5, '#fbbf24', 3.5);
+        spawnShockwave(exit.x + 0.5, exit.y + 0.5, openerTeam === TEAM_RED ? '#ff3b5c' : '#2997ff', 4.5);
+        world.flowTimer = 0;
+        sfx.playAlert([330, 440, 587]);
+        logEvent(`${teamName(openerTeam)}工兵が「${tunnel.name}」を開通！敵の背後へ奇襲部隊がなだれ込みます！`, openerTeam, {
+          cutin: true, title: '⛏️ 秘密の地下坑道 開通！', icon: '⛏️', highlight: true
+        });
+      }
+
+      // ---- 7) AMPHIBIOUS SEA-LANE LANDING ----
+      function launchAmphibiousRaid(team) {
+        const enemy = team === TEAM_RED ? TEAM_BLUE : TEAM_RED;
+        const { cols, rows, terrain, owner } = world;
+        const idx = (x, y) => y * cols + x;
+
+        const friendlyCoasts = [];
+        const enemyCoasts = [];
+
+        for (let y = 2; y < rows - 2; y += 2) {
+          for (let x = 2; x < cols - 2; x += 2) {
+            const i = idx(x, y);
+            if (!isPassable(terrain[i])) continue;
+            // Must border water
+            const nearWater = terrain[i - 1] === T_WATER || terrain[i + 1] === T_WATER ||
+                              terrain[i - cols] === T_WATER || terrain[i + cols] === T_WATER;
+            if (!nearWater) continue;
+            if (owner[i] === team) friendlyCoasts.push({ x: x + 0.5, y: y + 0.5 });
+            else if (owner[i] === enemy || owner[i] === TEAM_NEUTRAL) enemyCoasts.push({ x: x + 0.5, y: y + 0.5 });
+          }
+        }
+
+        if (!friendlyCoasts.length || !enemyCoasts.length) return false;
+
+        // Pick a pair whose midpoint actually crosses water
+        let bestPair = null;
+        for (let tries = 0; tries < 24; tries++) {
+          const a = pick(friendlyCoasts);
+          const b = pick(enemyCoasts);
+          const d = Math.hypot(a.x - b.x, a.y - b.y);
+          if (d < 6 || d > 36) continue;
+          const mx = Math.floor((a.x + b.x) * 0.5);
+          const my = Math.floor((a.y + b.y) * 0.5);
+          if (terrain[idx(mx, my)] === T_WATER) {
+            bestPair = { a, b };
+            break;
+          }
+        }
+        if (!bestPair) return false;
+
+        // Launch 3 amphibious landing craft
+        for (let k = 0; k < 3; k++) {
+          const jitterX = rand(-0.9, 0.9), jitterY = rand(-0.9, 0.9);
+          world.boats.push({
+            team,
+            x: bestPair.a.x + jitterX * 0.4,
+            y: bestPair.a.y + jitterY * 0.4,
+            tx: bestPair.b.x + jitterX * 0.5,
+            ty: bestPair.b.y + jitterY * 0.5,
+            speed: rand(3.8, 4.5),
+            payload: 4,
+            done: false
+          });
+        }
+        sfx.playAlert([294, 392]);
+        logEvent(`${teamName(team)}の上陸用舟艇編隊が出港！海を越えて敵側面への強襲揚陸を開始！`, team, {
+          cutin: true, title: '🚤 強襲揚陸作戦 開始', icon: '🚤'
+        });
+        return true;
+      }
+
+      // ---- 8) REAR-AREA PARTISAN UPRISING ----
+      function triggerPartisanUprising(rebelTeam) {
+        const occupier = rebelTeam === TEAM_RED ? TEAM_BLUE : TEAM_RED;
+        const { cols, rows, terrain, owner } = world;
+        const idx = (x, y) => y * cols + x;
+
+        // Prefer a base originally belonging to rebelTeam, or deep enemy territory
+        const formerBases = world.bases.filter(b => b.originalOwner === rebelTeam && b.owner === occupier && b.type !== BASE_CAPITAL);
+        let ux = -1, uy = -1, locName = '占領地奥地';
+
+        if (formerBases.length > 0) {
+          const b = pick(formerBases);
+          ux = b.x; uy = b.y; locName = `「${b.name}」周辺`;
+        } else {
+          // Sample random tile owned by occupier
+          for (let tries = 0; tries < 40; tries++) {
+            const rx = randInt(4, cols - 5);
+            const ry = randInt(4, rows - 5);
+            if (owner[idx(rx, ry)] === occupier && isClaimable(terrain[idx(rx, ry)])) {
+              ux = rx + 0.5; uy = ry + 0.5;
+              break;
+            }
+          }
+        }
+        if (ux < 0) return;
+
+        // Flip pocket of tiles & spawn guerrilla raiders
+        for (let dy = -3; dy <= 3; dy++) {
+          for (let dx = -3; dx <= 3; dx++) {
+            const tx = Math.floor(ux) + dx, ty = Math.floor(uy) + dy;
+            if (tx < 0 || tx >= cols || ty < 0 || ty >= rows) continue;
+            const ii = idx(tx, ty);
+            if (isClaimable(terrain[ii]) && dx * dx + dy * dy <= 9) {
+              owner[ii] = rebelTeam;
+              world.capFade[ii] = 0.1;
+            }
+          }
+        }
+        for (let i = 0; i < 11; i++) {
+          spawnUnit(rebelTeam, i < 8 ? U_RAIDER : U_INFANTRY, ux + rand(-1.5, 1.5), uy + rand(-1.5, 1.5));
+        }
+        spawnShockwave(ux, uy, rebelTeam === TEAM_RED ? '#ff3b5c' : '#2997ff', 4.4);
+        world.flowTimer = 0;
+        sfx.playAlert([440, 349, 523]);
+        logEvent(`【後方蜂起】${locName}にて${teamName(rebelTeam)}レジスタンスが一斉蜂起！敵後方を攪乱中！`, rebelTeam, {
+          cutin: true, title: '✊ 後方ゲリラ一斉蜂起！', icon: '✊', highlight: true
+        });
+      }
+
+      // ---- BRIDGE DEMOLITION & ENGINEER RECONSTRUCTION ----
+      function damageArea(cx, cy, rad, dmg, attackerTeam, makeCraters = true) {
+        const { cols, rows, terrain, owner, craterTimer, bridgeRepair } = world;
+        const r2 = rad * rad;
+        const idx = (x, y) => y * cols + x;
+        let bridgeBrokenNow = false;
+
+        // Damage all units in blast radius
+        for (let i = 0; i < world.units.length; i++) {
+          const u = world.units[i];
+          if (u.dead) continue;
+          const d2 = distSq(u.x, u.y, cx, cy);
+          if (d2 <= r2) {
+            const falloff = 1 - Math.sqrt(d2) / (rad + 0.5);
+            const friendlyScale = u.team === attackerTeam ? 0.25 : 1.0;
+            u.hp -= dmg * falloff * friendlyScale;
+            if (u.hp <= 0) killUnit(u);
+          }
+        }
+
+        // Scorch terrain, create craters, and demolish bridges!
+        for (let dy = -Math.ceil(rad); dy <= Math.ceil(rad); dy++) {
+          for (let dx = -Math.ceil(rad); dx <= Math.ceil(rad); dx++) {
+            const tx = Math.floor(cx) + dx;
+            const ty = Math.floor(cy) + dy;
+            if (tx < 1 || tx >= cols - 1 || ty < 1 || ty >= rows - 1) continue;
+            if (dx * dx + dy * dy > r2) continue;
+            const ii = idx(tx, ty);
+
+            if (terrain[ii] === T_BRIDGE) {
+              terrain[ii] = T_BROKEN_BRIDGE;
+              bridgeRepair[ii] = 16.0; // Engineers will rebuild in 16s
+              owner[ii] = TEAM_NEUTRAL;
+              bridgeBrokenNow = true;
+              world.terrainDirty = true;
+            } else if (makeCraters && (terrain[ii] === T_PLAINS || terrain[ii] === T_FOREST)) {
+              if (dx * dx + dy * dy <= r2 * 0.55) {
+                terrain[ii] = T_CRATER;
+                craterTimer[ii] = 28.0;
+                owner[ii] = TEAM_NEUTRAL;
+                world.terrainDirty = true;
+              } else if (owner[ii] !== attackerTeam) {
+                owner[ii] = TEAM_NEUTRAL;
+              }
+            }
+          }
+        }
+
+        // Weaken enemy bases in blast radius
+        for (const b of world.bases) {
+          if (b.owner !== attackerTeam && distSq(b.x, b.y, cx, cy) <= (rad + 1.5) * (rad + 1.5)) {
+            b.capture = Math.max(0, b.capture - dmg * 0.45);
+            b.underAttackTimer = 4.0;
+          }
+        }
+
+        if (bridgeBrokenNow) {
+          world.metrics.bridgesBroken++;
+          world.flowTimer = 0;
+          world.supplyTimer = 0;
+          logEvent('激しい爆撃により重要橋梁が崩落！前線が一時分断されました（工兵が再架橋を開始）', 'gold', {
+            cutin: true, title: '🌉 橋梁爆破・前線分断！', icon: '🌉', highlight: true
+          });
+        }
+      }
+
+      function updateTerrainTimers(dt) {
+        let rebuiltAny = false;
+        const { size, terrain, origTerrain, craterTimer, bridgeRepair } = world;
+        for (let i = 0; i < size; i++) {
+          if (bridgeRepair[i] > 0) {
+            bridgeRepair[i] -= dt;
+            if (bridgeRepair[i] <= 0) {
+              bridgeRepair[i] = 0;
+              terrain[i] = T_BRIDGE;
+              rebuiltAny = true;
+              world.terrainDirty = true;
+            }
+          }
+          if (craterTimer[i] > 0) {
+            craterTimer[i] -= dt;
+            if (craterTimer[i] <= 0) {
+              craterTimer[i] = 0;
+              if (terrain[i] === T_CRATER) {
+                terrain[i] = origTerrain[i] === T_FOREST ? T_PLAINS : origTerrain[i];
+                world.terrainDirty = true;
+              }
+            }
+          }
+        }
+        if (rebuiltAny) {
+          world.flowTimer = 0;
+          logEvent('工兵部隊による仮設橋の再架橋が完了！両軍の再進撃が始まります！', 'gold', {
+            cutin: true, title: '🔧 橋梁修復・再進撃開始', icon: '🔧'
+          });
+        }
+      }
+
+      // =======================================================================
+      // 9. SPECIAL ENTITIES UPDATE (MISSILES, INTERCEPTORS, AIRCRAFT, BOATS)
+      // =======================================================================
+      function updateMissilesAndAir(dt) {
+        // 1) Ballistic Missiles
+        let w = 0;
+        for (let i = 0; i < world.missiles.length; i++) {
+          const m = world.missiles[i];
+          if (m.done) continue;
+          m.t += dt / m.duration;
+
+          // Launch interceptor at ~38% flight time
+          if (m.willIntercept && !m.interceptorLaunched && m.t >= 0.36 && m.interceptorBase) {
+            m.interceptorLaunched = true;
+            const enemy = m.team === TEAM_RED ? TEAM_BLUE : TEAM_RED;
+            world.interceptors.push({
+              team: enemy,
+              targetMissile: m,
+              x: m.interceptorBase.x,
+              y: m.interceptorBase.y,
+              z: 0,
+              speed: 22,
+              trail: [],
+              done: false
+            });
+            sfx.playIntercept();
+          }
+
+          if (m.t >= 1) {
+            // IMPACT!
+            m.done = true;
+            damageArea(m.tx, m.ty, 3.8, 125, m.team, true);
+            spawnShockwave(m.tx, m.ty, '#fbbf24', 5.6);
+            spawnShockwave(m.tx, m.ty, m.team === TEAM_RED ? '#ff3b5c' : '#2997ff', 4.0);
+            for (let k = 0; k < 28; k++) {
+              const a = rand(0, Math.PI * 2), sp = rand(1.5, 7.5);
+              world.particles.push({
+                x: m.tx, y: m.ty, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                life: rand(0.4, 0.95), maxLife: 0.95, size: rand(2.2, 4.8),
+                color: k % 3 === 0 ? '#ffffff' : (k % 2 === 0 ? '#fbbf24' : '#f97316')
+              });
+            }
+            world.shakeMag = Math.max(world.shakeMag, 8.5);
+            sfx.playExplosion(true);
+            logEvent(`${teamName(m.team)}の弾道ミサイルが${m.targetDesc}に着弾！大爆発とクレーターが発生！`, m.team);
+            continue;
+          }
+
+          // Parabolic arc
+          m.x = m.sx + (m.tx - m.sx) * m.t;
+          m.y = m.sy + (m.ty - m.sy) * m.t;
+          m.z = Math.sin(m.t * Math.PI) * 9.5;
+          m.trail.push({ x: m.x, y: m.y, z: m.z });
+          if (m.trail.length > 26) m.trail.shift();
+          world.missiles[w++] = m;
+        }
+        world.missiles.length = w;
+
+        // 2) Interceptors chasing ballistic missiles
+        w = 0;
+        for (let i = 0; i < world.interceptors.length; i++) {
+          const ic = world.interceptors[i];
+          const m = ic.targetMissile;
+          if (ic.done || !m || m.done) continue;
+          const dx = m.x - ic.x, dy = m.y - ic.y, dz = m.z - ic.z;
+          const dist = Math.hypot(dx, dy, dz) || 0.01;
+          if (dist < 1.15) {
+            // MID-AIR INTERCEPTION SUCCESS!
+            ic.done = true;
+            m.done = true;
+            world.metrics.missilesIntercepted++;
+            spawnShockwave(m.x, m.y - m.z * 0.45, '#38bdf8', 3.4);
+            for (let k = 0; k < 18; k++) {
+              const a = rand(0, Math.PI * 2), sp = rand(1.5, 5.5);
+              world.particles.push({
+                x: m.x, y: m.y - m.z * 0.45, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                life: rand(0.3, 0.7), maxLife: 0.7, size: rand(2, 3.8),
+                color: k % 2 === 0 ? '#7dd3fc' : '#ffffff'
+              });
+            }
+            sfx.playIntercept();
+            logEvent(`【迎撃成功】${teamName(ic.team)}防空網が飛来した弾道ミサイルを空中で撃墜！`, ic.team, {
+              cutin: true, title: '🛡️ ミサイル空中迎撃成功！', icon: '✨', highlight: true
+            });
+            continue;
+          }
+          ic.x += (dx / dist) * ic.speed * dt;
+          ic.y += (dy / dist) * ic.speed * dt;
+          ic.z += (dz / dist) * ic.speed * dt;
+          ic.trail.push({ x: ic.x, y: ic.y, z: ic.z });
+          if (ic.trail.length > 14) ic.trail.shift();
+          world.interceptors[w++] = ic;
+        }
+        world.interceptors.length = w;
+
+        // 3) Aircraft (Bombers & Airborne Transports)
+        w = 0;
+        for (let i = 0; i < world.aircraft.length; i++) {
+          const ac = world.aircraft[i];
+          ac.x += ac.vx * dt;
+          ac.y += ac.vy * dt;
+
+          if (ac.kind === 'bomber' && ac.bombsLeft > 0) {
+            const dHot = Math.hypot(ac.x - ac.bombStartX, ac.y - ac.bombStartY);
+            if (dHot < 11) {
+              ac.bombTimer -= dt;
+              if (ac.bombTimer <= 0) {
+                ac.bombTimer = 0.22;
+                ac.bombsLeft--;
+                if (ac.x > 1 && ac.x < world.cols - 1 && ac.y > 1 && ac.y < world.rows - 1) {
+                  damageArea(ac.x, ac.y, 2.0, 48, ac.team, false);
+                  spawnShockwave(ac.x, ac.y, '#f97316', 2.2);
+                  for (let k = 0; k < 7; k++) {
+                    world.particles.push({
+                      x: ac.x, y: ac.y, vx: rand(-3, 3), vy: rand(-3, 3),
+                      life: 0.38, maxLife: 0.38, size: rand(1.8, 3.2), color: '#fb923c'
+                    });
+                  }
+                  world.shakeMag = Math.max(world.shakeMag, 3.2);
+                  if (ac.bombsLeft % 2 === 0) sfx.playExplosion(false);
+                }
+              }
+            }
+          } else if (ac.kind === 'transport' && !ac.dropped) {
+            if (Math.hypot(ac.x - ac.dzX, ac.y - ac.dzY) < 2.2) {
+              ac.dropped = true;
+              for (let k = 0; k < 10; k++) {
+                world.paratroopers.push({
+                  team: ac.team,
+                  x: clamp(ac.dzX + rand(-2.4, 2.4), 1.5, world.cols - 1.5),
+                  y: clamp(ac.dzY + rand(-2.4, 2.4), 1.5, world.rows - 1.5),
+                  z: rand(3.2, 4.8),
+                  sway: rand(0, Math.PI * 2),
+                  unitType: k < 7 ? U_RAIDER : U_INFANTRY
+                });
+              }
+            }
+          }
+
+          if (ac.x > -8 && ac.x < world.cols + 8 && ac.y > -8 && ac.y < world.rows + 8) {
+            world.aircraft[w++] = ac;
+          }
+        }
+        world.aircraft.length = w;
+
+        // 4) Paratroopers descending
+        w = 0;
+        for (let i = 0; i < world.paratroopers.length; i++) {
+          const p = world.paratroopers[i];
+          p.z -= dt * 2.1;
+          p.sway += dt * 5;
+          if (p.z <= 0) {
+            const tx = clamp(p.x | 0, 0, world.cols - 1);
+            const ty = clamp(p.y | 0, 0, world.rows - 1);
+            const ti = ty * world.cols + tx;
+            if (isPassable(world.terrain[ti])) {
+              spawnUnit(p.team, p.unitType, p.x, p.y);
+              world.owner[ti] = p.team;
+              world.capFade[ti] = 0.2;
+            }
+            continue;
+          }
+          world.paratroopers[w++] = p;
+        }
+        world.paratroopers.length = w;
+
+        // 5) Amphibious Landing Craft crossing oceans
+        w = 0;
+        for (let i = 0; i < world.boats.length; i++) {
+          const b = world.boats[i];
+          const dx = b.tx - b.x, dy = b.ty - b.y;
+          const d = Math.hypot(dx, dy);
+          if (d < 0.85) {
+            // BEACHHEAD LANDING!
+            for (let k = 0; k < b.payload; k++) {
+              spawnUnit(b.team, k === 0 ? U_INFANTRY : U_RAIDER, b.tx + rand(-1, 1), b.ty + rand(-1, 1));
+            }
+            const tx = clamp(b.tx | 0, 1, world.cols - 2);
+            const ty = clamp(b.ty | 0, 1, world.rows - 2);
+            for (let oy = -1; oy <= 1; oy++) {
+              for (let ox = -1; ox <= 1; ox++) {
+                const ii = (ty + oy) * world.cols + (tx + ox);
+                if (isClaimable(world.terrain[ii])) {
+                  world.owner[ii] = b.team;
+                  world.capFade[ii] = 0.1;
+                }
+              }
+            }
+            spawnShockwave(b.tx, b.ty, b.team === TEAM_RED ? '#ff3b5c' : '#2997ff', 2.4);
+            continue;
+          }
+          b.x += (dx / d) * b.speed * dt;
+          b.y += (dy / d) * b.speed * dt;
+          b.ang = Math.atan2(dy, dx);
+          world.boats[w++] = b;
+        }
+        world.boats.length = w;
+      }
+
+      // =======================================================================
+      // 10. UNITS, BASES, SPATIAL HASH & COMBAT SIMULATION
+      // =======================================================================
+      function spawnUnit(team, type, x, y, force = false) {
+        const cnt = team === TEAM_RED ? world.stats.redUnits : world.stats.blueUnits;
+        if (!force && cnt >= MAX_UNITS_PER_TEAM) return;
+        const sx = clamp(x, 1, world.cols - 1.01);
+        const sy = clamp(y, 1, world.rows - 1.01);
+        const ti = (sy | 0) * world.cols + (sx | 0);
+        if (!isPassable(world.terrain[ti])) return;
+
+        const spec = UNIT_SPECS[type];
+        const st = world.ai[team].stance;
+        let mission = 'front';
+        const r = Math.random();
+        if (type === U_JUGGERNAUT || type === U_ARTILLERY) mission = 'obj';
+        else if (st === STANCES.DEFEND && r < 0.48) mission = 'defend';
+        else if (st === STANCES.BLITZ && r < 0.7) mission = 'obj';
+        else if (st === STANCES.AMBUSH && r < 0.65) mission = 'obj';
+        else mission = r < 0.5 ? 'front' : 'obj';
+
+        world.units.push({
+          team, type,
+          x: sx, y: sy, px: sx, py: sy, vx: 0, vy: 0,
+          hp: spec.hp, maxHp: spec.hp,
+          cooldown: rand(0, spec.fireRate),
+          mission,
+          dead: false
+        });
+        if (team === TEAM_RED) world.stats.redUnits++;
+        else world.stats.blueUnits++;
+      }
+
+      function rebuildSpatialGrid() {
+        const grid = world.spatialGrid;
+        for (let i = 0; i < grid.length; i++) grid[i].length = 0;
+        const cols = world.cols, rows = world.rows;
+        for (let i = 0; i < world.units.length; i++) {
+          const u = world.units[i];
+          if (u.dead) continue;
+          const tx = clamp(u.x | 0, 0, cols - 1);
+          const ty = clamp(u.y | 0, 0, rows - 1);
+          grid[ty * cols + tx].push(u);
+        }
+      }
+
+      function updateBases(dt) {
+        const escMult = world.escalationStage === 2 ? 1.55 : (world.escalationStage === 1 ? 1.25 : 1.0);
+        for (const b of world.bases) {
+          const spec = BASE_SPECS[b.type];
+          b.pulse = (b.pulse + dt * 1.35) % 1;
+          if (b.underAttackTimer > 0) b.underAttackTimer = Math.max(0, b.underAttackTimer - dt);
+
+          const capR = spec.radius + 1.45;
+          const capR2 = capR * capR;
+          let redP = 0, blueP = 0;
+          const minX = Math.max(0, Math.floor(b.x - capR));
+          const maxX = Math.min(world.cols - 1, Math.ceil(b.x + capR));
+          const minY = Math.max(0, Math.floor(b.y - capR));
+          const maxY = Math.min(world.rows - 1, Math.ceil(b.y + capR));
+
+          for (let ty = minY; ty <= maxY; ty++) {
+            const off = ty * world.cols;
+            for (let tx = minX; tx <= maxX; tx++) {
+              const bucket = world.spatialGrid[off + tx];
+              for (let k = 0; k < bucket.length; k++) {
+                const u = bucket[k];
+                if (u.dead) continue;
+                if (distSq(u.x, u.y, b.x, b.y) <= capR2) {
+                  if (u.team === TEAM_RED) redP += UNIT_SPECS[u.type].baseCap;
+                  else blueP += UNIT_SPECS[u.type].baseCap;
+                }
+              }
+            }
+          }
+
+          if (redP > 0 || blueP > 0) {
+            const net = redP - blueP;
+            const domTeam = net > 0 ? TEAM_RED : (net < 0 ? TEAM_BLUE : TEAM_NEUTRAL);
+            const str = Math.min(Math.abs(net), 48) * dt * (world.escalationStage >= 1 ? 1.3 : 1.0);
+            if (domTeam !== TEAM_NEUTRAL && domTeam !== b.owner) {
+              if (b.owner !== TEAM_NEUTRAL) {
+                b.underAttackTimer = 3.0;
+                b.capture -= str;
+                if (b.capture <= 0) {
+                  // Capital fall check!
+                  if (b.type === BASE_CAPITAL && world.winner === TEAM_NEUTRAL) {
+                    onBaseCaptured(b, domTeam);
+                    declareVictory(domTeam, `${teamName(b.originalOwner)}の首都「${b.name}」を陥落させました！`);
+                    return;
+                  }
+                  b.owner = TEAM_NEUTRAL;
+                  b.capture = Math.abs(b.capture);
+                  b.capturingTeam = domTeam;
+                  spawnShockwave(b.x, b.y, '#cbd5e1', 2.4);
+                }
+              } else {
+                if (b.capturingTeam === domTeam || b.capture <= 0.1) {
+                  b.capturingTeam = domTeam;
+                  b.capture += str * 1.25;
+                  if (b.capture >= spec.maxCap) onBaseCaptured(b, domTeam);
+                } else {
+                  b.capture = Math.max(0, b.capture - str * 1.3);
+                  if (b.capture === 0) b.capturingTeam = domTeam;
+                }
+              }
+            } else if (domTeam === b.owner && b.owner !== TEAM_NEUTRAL) {
+              b.capture = Math.min(spec.maxCap, b.capture + str * 0.75);
+            }
+          } else if (b.owner !== TEAM_NEUTRAL && b.capture < spec.maxCap) {
+            b.capture = Math.min(spec.maxCap, b.capture + dt * 3.8);
+          }
+
+          // Production
+          if (b.owner !== TEAM_NEUTRAL && b.underAttackTimer <= 0.4) {
+            const mobMult = world.ai[b.owner].mobilizationTimer > 0 ? 1.75 : 1.0;
+            b.spawnTimer -= dt * escMult * mobMult;
+            if (b.spawnTimer <= 0) {
+              b.spawnTimer = spec.spawnInterval * rand(0.85, 1.15);
+              let ut = U_INFANTRY;
+              const roll = Math.random();
+              if (b.type === BASE_FORTRESS) ut = roll < 0.42 ? U_ARTILLERY : U_INFANTRY;
+              else if (b.type === BASE_SUPPLY) ut = roll < 0.48 ? U_RAIDER : U_INFANTRY;
+              else if (b.type === BASE_CAPITAL) ut = roll < 0.25 ? U_RAIDER : (roll < 0.42 ? U_ARTILLERY : U_INFANTRY);
+              else ut = roll < 0.3 ? U_ARTILLERY : U_INFANTRY;
+
+              const ang = rand(0, Math.PI * 2);
+              spawnUnit(b.owner, ut, b.x + Math.cos(ang) * 1.1, b.y + Math.sin(ang) * 1.1);
+            }
+          }
+        }
+      }
+
+      function onBaseCaptured(base, newOwner) {
+        base.owner = newOwner;
+        base.capturingTeam = newOwner;
+        base.capture = BASE_SPECS[base.type].maxCap;
+
+        const rad = base.type === BASE_CAPITAL ? 5.0 : 3.2;
+        const r2 = rad * rad;
+        for (let dy = -Math.ceil(rad); dy <= Math.ceil(rad); dy++) {
+          for (let dx = -Math.ceil(rad); dx <= Math.ceil(rad); dx++) {
+            const tx = base.tx + dx, ty = base.ty + dy;
+            if (tx < 0 || tx >= world.cols || ty < 0 || ty >= world.rows) continue;
+            const ii = ty * world.cols + tx;
+            if (isClaimable(world.terrain[ii]) && dx * dx + dy * dy <= r2) {
+              world.owner[ii] = newOwner;
+              world.capFade[ii] = 0.15;
+            }
+          }
+        }
+
+        const col = newOwner === TEAM_RED ? '#ff3b5c' : '#2997ff';
+        spawnShockwave(base.x, base.y, col, base.type === BASE_CAPITAL ? 6.5 : 4.0);
+        world.shakeMag = Math.max(world.shakeMag, base.type === BASE_CAPITAL ? 6.5 : 2.8);
+        sfx.playExplosion(base.type === BASE_CAPITAL);
+
+        const isImportant = base.type === BASE_CAPITAL || base.type === BASE_FORTRESS || base.type === BASE_SILO;
+        logEvent(`${teamName(newOwner)}が「${base.name}」を制圧しました！`, newOwner, {
+          cutin: isImportant,
+          title: `🚩 ${base.name} 制圧！`,
+          icon: base.type === BASE_SILO ? '🚀' : '🚩',
+          highlight: isImportant
+        });
+        world.flowTimer = 0;
+        world.supplyTimer = 0;
+      }
+
+      function updateUnits(dt) {
+        const { cols, rows, terrain, owner, isolated, spatialGrid } = world;
+        const escDmg = world.escalationStage === 2 ? 1.42 : (world.escalationStage === 1 ? 1.18 : 1.0);
+
+        for (let i = 0; i < world.units.length; i++) {
+          const u = world.units[i];
+          if (u.dead) continue;
+
+          const spec = UNIT_SPECS[u.type];
+          const tx = clamp(u.x | 0, 0, cols - 1);
+          const ty = clamp(u.y | 0, 0, rows - 1);
+          const tIdx = ty * cols + tx;
+          const tr = terrain[tIdx];
+
+          // Attrition when trapped in supply-cut pocket (Juggernaut resists longer)
+          if (owner[tIdx] === u.team && isolated[tIdx]) {
+            u.hp -= dt * (u.type === U_JUGGERNAUT ? 4.5 : 2.4);
+            if (u.hp <= 0) { killUnit(u); continue; }
+          }
+
+          const mobilized = world.ai[u.team].mobilizationTimer > 0;
+          const terrainSpd = tr === T_CRATER ? 0.52 : (tr === T_FOREST ? 0.78 : (tr === T_TUNNEL ? 1.25 : 1.0));
+          const spdMult = terrainSpd * (mobilized ? 1.32 : 1.0);
+          const dmgMult = escDmg * (mobilized ? 1.28 : 1.0);
+
+          // Scan Spatial Hash for nearest enemy & friendly separation
+          const scanR = Math.ceil(spec.range);
+          const range2 = spec.range * spec.range;
+          let target = null, bestD2 = range2;
+          let sepX = 0, sepY = 0;
+
+          const minX = Math.max(0, tx - scanR), maxX = Math.min(cols - 1, tx + scanR);
+          const minY = Math.max(0, ty - scanR), maxY = Math.min(rows - 1, ty + scanR);
+
+          for (let ny = minY; ny <= maxY; ny++) {
+            const off = ny * cols;
+            for (let nx = minX; nx <= maxX; nx++) {
+              const bucket = spatialGrid[off + nx];
+              for (let k = 0; k < bucket.length; k++) {
+                const o = bucket[k];
+                if (o === u || o.dead) continue;
+                const dx = o.x - u.x, dy = o.y - u.y;
+                const d2 = dx * dx + dy * dy;
+                if (o.team !== u.team) {
+                  if (d2 < bestD2) { bestD2 = d2; target = o; }
+                } else if (d2 < 0.4 && d2 > 0.0001 && u.type !== U_JUGGERNAUT) {
+                  const inv = 1 / Math.sqrt(d2);
+                  sepX -= dx * inv * (0.64 - Math.sqrt(d2));
+                  sepY -= dy * inv * (0.64 - Math.sqrt(d2));
+                }
+              }
+            }
+          }
+
+          // Combat fire
+          u.cooldown -= dt * (mobilized ? 1.2 : 1.0);
+          if (target && u.cooldown <= 0) {
+            u.cooldown = spec.fireRate * rand(0.85, 1.15);
+            const tTile = terrain[clamp(target.y | 0, 0, rows - 1) * cols + clamp(target.x | 0, 0, cols - 1)];
+            const defMult = tTile === T_FOREST ? 0.68 : 1.0;
+            const dmg = spec.damage * defMult * dmgMult * rand(0.88, 1.12);
+
+            if (spec.aoe > 0) {
+              // Artillery / Juggernaut Splash Damage
+              const aoe2 = spec.aoe * spec.aoe;
+              const sx0 = Math.max(0, Math.floor(target.x - spec.aoe));
+              const sx1 = Math.min(cols - 1, Math.ceil(target.x + spec.aoe));
+              const sy0 = Math.max(0, Math.floor(target.y - spec.aoe));
+              const sy1 = Math.min(rows - 1, Math.ceil(target.y + spec.aoe));
+              for (let ay = sy0; ay <= sy1; ay++) {
+                const aOff = ay * cols;
+                for (let ax = sx0; ax <= sx1; ax++) {
+                  const bk = spatialGrid[aOff + ax];
+                  for (let m = 0; m < bk.length; m++) {
+                    const en = bk[m];
+                    if (en.dead || en.team === u.team) continue;
+                    if (distSq(en.x, en.y, target.x, target.y) <= aoe2) {
+                      en.hp -= dmg * (en === target ? 1.0 : 0.55);
+                      if (en.hp <= 0) killUnit(en);
+                    }
+                  }
+                }
+              }
+              if (u.type === U_JUGGERNAUT) {
+                spawnShockwave(target.x, target.y, '#fbbf24', 1.6);
+              }
+            } else {
+              target.hp -= dmg;
+              if (target.hp <= 0) killUnit(target);
+            }
+
+            // Visual tracer
+            if (world.tracers.length < 190) {
+              world.tracers.push({
+                x1: u.x, y1: u.y,
+                x2: target.x + rand(-0.1, 0.1), y2: target.y + rand(-0.1, 0.1),
+                color: u.type === U_JUGGERNAUT ? '#fbbf24' : (u.team === TEAM_RED ? '#ff9eb0' : '#94d2ff'),
+                width: u.type === U_JUGGERNAUT ? 3.2 : (u.type === U_ARTILLERY ? 2.1 : 1.15),
+                life: u.type === U_JUGGERNAUT ? 0.22 : 0.12,
+                maxLife: u.type === U_JUGGERNAUT ? 0.22 : 0.12
+              });
+            }
+          }
+
+          // Flow-Field Steering
+          const flowMap = world.flow[u.team][u.mission] || world.flow[u.team].front;
+          let dx = 0, dy = 0;
+          if (target && bestD2 > range2 * 0.48 && u.type !== U_JUGGERNAUT) {
+            const d = Math.hypot(target.x - u.x, target.y - u.y) || 1;
+            dx = (target.x - u.x) / d; dy = (target.y - u.y) / d;
+          } else if (target && u.type !== U_JUGGERNAUT) {
+            dx = sepX * 0.4; dy = sepY * 0.4;
+          } else {
+            let bestVal = flowMap[tIdx];
+            let gx = 0, gy = 0;
+            const nb = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+            for (let n = 0; n < 8; n++) {
+              const nx = tx + nb[n][0], ny = ty + nb[n][1];
+              if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
+              const ni = ny * cols + nx;
+              if (!isPassable(terrain[ni])) continue;
+              if (flowMap[ni] < bestVal) {
+                bestVal = flowMap[ni]; gx = nb[n][0]; gy = nb[n][1];
+              }
+            }
+            if (gx || gy) {
+              const l = Math.hypot(gx, gy); dx = gx / l; dy = gy / l;
+            } else {
+              dx = rand(-0.5, 0.5); dy = rand(-0.5, 0.5);
+            }
+          }
+
+          let mx = dx + sepX * 1.05;
+          let my = dy + sepY * 1.05;
+          const mLen = Math.hypot(mx, my);
+          if (mLen > 0.001) { mx /= mLen; my /= mLen; }
+
+          const moveSpd = spec.speed * spdMult * (target && u.type !== U_JUGGERNAUT ? 0.34 : 1.0);
+          u.vx = u.vx * 0.65 + mx * moveSpd * 0.35;
+          u.vy = u.vy * 0.65 + my * moveSpd * 0.35;
+          u.px = u.x; u.py = u.y;
+
+          const nx = clamp(u.x + u.vx * dt, 0.4, cols - 0.4);
+          const ny = clamp(u.y + u.vy * dt, 0.4, rows - 0.4);
+          if (isPassable(terrain[(ny | 0) * cols + (nx | 0)])) {
+            u.x = nx; u.y = ny;
+          } else if (isPassable(terrain[(u.y | 0) * cols + (nx | 0)])) {
+            u.x = nx;
+          } else if (isPassable(terrain[(ny | 0) * cols + (u.x | 0)])) {
+            u.y = ny;
+          }
+
+          // Territory Capture
+          const cx = clamp(u.x | 0, 0, cols - 1);
+          const cy = clamp(u.y | 0, 0, rows - 1);
+          const cIdx = cy * cols + cx;
+
+          if (u.type === U_JUGGERNAUT) {
+            // Super-Heavy Juggernaut forcefully paints a 3x3 swath as it rolls!
+            for (let oy = -1; oy <= 1; oy++) {
+              for (let ox = -1; ox <= 1; ox++) {
+                const px = cx + ox, py = cy + oy;
+                if (px < 0 || px >= cols || py < 0 || py >= rows) continue;
+                const pi = py * cols + px;
+                if (isClaimable(terrain[pi]) && owner[pi] !== u.team) {
+                  owner[pi] = u.team;
+                  world.capFade[pi] = 0.1;
+                  isolated[pi] = 0;
+                }
+              }
+            }
+          } else if (isClaimable(terrain[cIdx]) && owner[cIdx] !== u.team) {
+            owner[cIdx] = u.team;
+            world.capFade[cIdx] = 0.08;
+            isolated[cIdx] = 0;
+          }
+        }
+
+        // Compact dead units
+        let w = 0;
+        for (let i = 0; i < world.units.length; i++) {
+          if (!world.units[i].dead) world.units[w++] = world.units[i];
+        }
+        world.units.length = w;
+      }
+
+      function killUnit(u) {
+        if (u.dead) return;
+        u.dead = true;
+        world.metrics.casualties++;
+        if (u.team === TEAM_RED) world.stats.redUnits = Math.max(0, world.stats.redUnits - 1);
+        else world.stats.blueUnits = Math.max(0, world.stats.blueUnits - 1);
+
+        const col = u.team === TEAM_RED ? '#ff3b5c' : '#2997ff';
+        const isBoss = u.type === U_JUGGERNAUT;
+        const cnt = isBoss ? 30 : (u.type === U_ARTILLERY ? 7 : 3);
+        for (let i = 0; i < cnt; i++) {
+          if (world.particles.length >= 300) break;
+          const a = rand(0, Math.PI * 2), sp = rand(1.0, isBoss ? 7.5 : 2.8);
+          world.particles.push({
+            x: u.x, y: u.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+            life: rand(0.25, isBoss ? 0.9 : 0.48), maxLife: isBoss ? 0.9 : 0.48,
+            size: isBoss ? rand(2.5, 5.2) : rand(1.3, 2.5),
+            color: i % 3 === 0 ? '#ffffff' : (isBoss ? '#fbbf24' : col)
+          });
+        }
+
+        if (isBoss) {
+          spawnShockwave(u.x, u.y, '#fbbf24', 5.2);
+          world.shakeMag = Math.max(world.shakeMag, 7.5);
+          sfx.playExplosion(true);
+          const killer = u.team === TEAM_RED ? TEAM_BLUE : TEAM_RED;
+          logEvent(`集中砲火の末、${teamName(u.team)}の決戦兵器「超重戦車」が撃破され大爆発！`, killer, {
+            cutin: true, title: '💥 決戦兵器「超重戦車」撃破！', icon: '💥', highlight: true
+          });
+        }
+      }
+
+      function spawnShockwave(x, y, color, maxRadius) {
+        world.shockwaves.push({ x, y, color, radius: 0.4, maxRadius, life: 0.65, maxLife: 0.65 });
+      }
+
+      function updateEffects(dt) {
+        const cf = world.capFade;
+        for (let i = 0; i < cf.length; i++) if (cf[i] > 0 && cf[i] < 1) cf[i] = Math.min(1, cf[i] + dt * 3.0);
+
+        let w = 0;
+        for (let i = 0; i < world.tracers.length; i++) {
+          world.tracers[i].life -= dt;
+          if (world.tracers[i].life > 0) world.tracers[w++] = world.tracers[i];
+        }
+        world.tracers.length = w;
+
+        w = 0;
+        for (let i = 0; i < world.particles.length; i++) {
+          const p = world.particles[i];
+          p.life -= dt;
+          if (p.life > 0) {
+            p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.92; p.vy *= 0.92;
+            world.particles[w++] = p;
+          }
+        }
+        world.particles.length = w;
+
+        w = 0;
+        for (let i = 0; i < world.shockwaves.length; i++) {
+          const s = world.shockwaves[i];
+          s.life -= dt;
+          if (s.life > 0) {
+            const frac = 1 - s.life / s.maxLife;
+            s.radius = s.maxRadius * (1 - Math.pow(1 - frac, 3));
+            world.shockwaves[w++] = s;
+          }
+        }
+        world.shockwaves.length = w;
+
+        if (world.shakeMag > 0.05) world.shakeMag *= Math.pow(0.05, dt);
+        else world.shakeMag = 0;
+      }
+
+      // =======================================================================
+      // 11. STATS, VICTORY SUMMARY & HISTORY GRAPH
+      // =======================================================================
+      function recomputeStats() {
+        const { size, owner, bases, units, claimableTiles } = world;
+        let rT = 0, bT = 0, rB = 0, bB = 0, rU = 0, bU = 0;
+        for (let i = 0; i < size; i++) {
+          if (owner[i] === TEAM_RED) rT++;
+          else if (owner[i] === TEAM_BLUE) bT++;
+        }
+        for (const b of bases) {
+          if (b.owner === TEAM_RED) rB++;
+          else if (b.owner === TEAM_BLUE) bB++;
+        }
+        for (let i = 0; i < units.length; i++) {
+          if (units[i].team === TEAM_RED) rU++;
+          else bU++;
+        }
+        const st = world.stats;
+        st.redTiles = rT; st.blueTiles = bT;
+        st.redPct = (rT / claimableTiles) * 100;
+        st.bluePct = (bT / claimableTiles) * 100;
+        st.redBases = rB; st.blueBases = bB;
+        st.redUnits = rU; st.blueUnits = bU;
+
+        if (world.winner === TEAM_NEUTRAL && world.elapsed > 5) {
+          if (st.redPct >= VICTORY_PCT) declareVictory(TEAM_RED, `領土支配率が ${VICTORY_PCT}% に到達しました`);
+          else if (st.bluePct >= VICTORY_PCT) declareVictory(TEAM_BLUE, `領土支配率が ${VICTORY_PCT}% に到達しました`);
+          else if (bB === 0 && rB > 0 && bU < 10) declareVictory(TEAM_RED, '蒼軍の全拠点を完全制圧しました');
+          else if (rB === 0 && bB > 0 && rU < 10) declareVictory(TEAM_BLUE, '紅軍の全拠点を完全制圧しました');
+          else if (world.elapsed >= TIME_LIMIT_SEC) {
+            const win = st.redPct >= st.bluePct ? TEAM_RED : TEAM_BLUE;
+            declareVictory(win, `戦役タイムリミット（3:00）到達により優勢判定で勝利`);
+          }
+        }
+      }
+
+      function declareVictory(winner, reason) {
+        if (world.winner !== TEAM_NEUTRAL) return;
+        world.winner = winner;
+        world.winReason = reason;
+        world.nextCountdown = 5.5;
+        session.wins[winner]++;
+
+        dom.winsRed.textContent = session.wins[TEAM_RED];
+        dom.winsBlue.textContent = session.wins[TEAM_BLUE];
+
+        const isRed = winner === TEAM_RED;
+        const winPct = isRed ? world.stats.redPct : world.stats.bluePct;
+        const comeback = Math.max(0, winPct - world.ai[winner].minPct);
+
+        dom.resultCard.className = 'result-card ' + (isRed ? 'red-win' : 'blue-win');
+        dom.resTitle.textContent = `${teamName(winner)}の勝利！（${world.ai[winner].name}）`;
+        dom.resReason.textContent = reason;
+        dom.resTime.textContent = formatTime(world.elapsed);
+        dom.resMissiles.textContent = `${world.metrics.missilesFired} / ${world.metrics.missilesIntercepted}`;
+        dom.resComeback.textContent = `+${comeback.toFixed(1)}%`;
+        dom.resSpecials.textContent = `${world.metrics.mobilizations} / ${world.metrics.juggernauts}`;
+
+        // Render top 4 highlights of the campaign story
+        dom.resHighlights.innerHTML = '';
+        const list = world.highlights.slice(-5);
+        for (const h of list) {
+          const li = document.createElement('li');
+          li.textContent = '• ' + h;
+          dom.resHighlights.appendChild(li);
+        }
+
+        dom.resCountdown.textContent = session.autoNext ? '次の戦役へ 5秒後に移行...' : '自動連戦はOFFです';
+        dom.resultOverlay.classList.add('show');
+        sfx.playAlert([523, 659, 784, 1046]);
+        logEvent(`【終戦】${teamName(winner)}が「${world.campaignTitle}」を制覇！（最終支配率 ${winPct.toFixed(1)}%）`, winner);
+      }
+
+      function recordHistory() {
+        world.history.push({ r: world.stats.redPct, b: world.stats.bluePct });
+        if (world.history.length > 160) {
+          world.history = world.history.filter((_, idx) => idx % 2 === 0);
+        }
+        if (session.showGraph) renderGraph();
+      }
+
+      function renderGraph() {
+        const w = dom.graphCanvas.width;
+        const h = dom.graphCanvas.height;
+        const pal = THEME_PALETTES[session.theme];
+        graphCtx.clearRect(0, 0, w, h);
+
+        graphCtx.strokeStyle = pal.gridLine;
+        graphCtx.lineWidth = 1;
+        graphCtx.beginPath();
+        graphCtx.moveTo(0, h * 0.5); graphCtx.lineTo(w, h * 0.5);
+        graphCtx.stroke();
+
+        const hist = world.history;
+        if (hist.length < 2) return;
+        const sx = w / Math.max(1, hist.length - 1);
+
+        // Red bottom-up
+        graphCtx.beginPath();
+        graphCtx.moveTo(0, h);
+        for (let i = 0; i < hist.length; i++) graphCtx.lineTo(i * sx, h - (hist[i].r / 100) * h);
+        graphCtx.lineTo(w, h);
+        graphCtx.closePath();
+        graphCtx.fillStyle = session.theme === 'dark' ? 'rgba(255,59,92,0.42)' : 'rgba(200,35,60,0.34)';
+        graphCtx.fill();
+
+        graphCtx.beginPath();
+        for (let i = 0; i < hist.length; i++) {
+          const x = i * sx, y = h - (hist[i].r / 100) * h;
+          if (i === 0) graphCtx.moveTo(x, y); else graphCtx.lineTo(x, y);
+        }
+        graphCtx.strokeStyle = pal.redMain;
+        graphCtx.lineWidth = 1.6;
+        graphCtx.stroke();
+
+        // Blue top-down
+        graphCtx.beginPath();
+        graphCtx.moveTo(0, 0);
+        for (let i = 0; i < hist.length; i++) graphCtx.lineTo(i * sx, (hist[i].b / 100) * h);
+        graphCtx.lineTo(w, 0);
+        graphCtx.closePath();
+        graphCtx.fillStyle = session.theme === 'dark' ? 'rgba(41,151,255,0.42)' : 'rgba(26,102,184,0.34)';
+        graphCtx.fill();
+
+        graphCtx.beginPath();
+        for (let i = 0; i < hist.length; i++) {
+          const x = i * sx, y = (hist[i].b / 100) * h;
+          if (i === 0) graphCtx.moveTo(x, y); else graphCtx.lineTo(x, y);
+        }
+        graphCtx.strokeStyle = pal.blueMain;
+        graphCtx.lineWidth = 1.6;
+        graphCtx.stroke();
+
+        dom.graphIsoLabel.textContent = `補給孤立: ${world.stats.isolatedCount}`;
+      }
+
+      function updateHUD() {
+        const st = world.stats;
+        dom.redPct.textContent = st.redPct.toFixed(1) + '%';
+        dom.bluePct.textContent = st.bluePct.toFixed(1) + '%';
+        dom.redBases.textContent = st.redBases;
+        dom.blueBases.textContent = st.blueBases;
+        dom.redUnits.textContent = st.redUnits;
+        dom.blueUnits.textContent = st.blueUnits;
+        dom.barRed.style.width = st.redPct.toFixed(2) + '%';
+        dom.barBlue.style.width = st.bluePct.toFixed(2) + '%';
+        dom.matchTimer.textContent = formatTime(world.elapsed);
+
+        const rg = Math.floor(world.ai[TEAM_RED].gauge);
+        const bg = Math.floor(world.ai[TEAM_BLUE].gauge);
+        dom.redGaugeFill.style.width = rg + '%';
+        dom.blueGaugeFill.style.width = bg + '%';
+        dom.redGaugeNum.textContent = rg;
+        dom.blueGaugeNum.textContent = bg;
+      }
+
+      // =======================================================================
+      // 12. CANVAS RENDERING ENGINE (DARK & LIGHT ARCHIVAL MAP SUPPORT)
+      // =======================================================================
+      function handleResize() {
+        if (!world) return;
+        const rect = dom.wrapper.getBoundingClientRect();
+        session.viewW = Math.max(240, rect.width);
+        session.viewH = Math.max(200, rect.height);
+        session.dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        dom.canvas.width = Math.round(session.viewW * session.dpr);
+        dom.canvas.height = Math.round(session.viewH * session.dpr);
+
+        const pad = 10;
+        const availW = Math.max(120, session.viewW - pad * 2);
+        const availH = Math.max(120, session.viewH - pad * 2);
+        const ts = Math.floor(Math.min(availW / world.cols, availH / world.rows));
+        session.tileSize = Math.max(5, ts);
+
+        const mapW = session.tileSize * world.cols;
+        const mapH = session.tileSize * world.rows;
+        session.offsetX = Math.floor((session.viewW - mapW) * 0.5);
+        session.offsetY = Math.floor((session.viewH - mapH) * 0.5);
+
+        bakeStaticTerrain();
+      }
+
+      function bakeStaticTerrain() {
+        const ts = session.tileSize;
+        const mapW = ts * world.cols;
+        const mapH = ts * world.rows;
+        terrainCanvas.width = mapW;
+        terrainCanvas.height = mapH;
+        const g = terrainCtx;
+        const pal = THEME_PALETTES[session.theme];
+        const { cols, rows, terrain, tileNoise } = world;
+        const idx = (x, y) => y * cols + x;
+
+        g.clearRect(0, 0, mapW, mapH);
+
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            const i = idx(x, y);
+            const t = terrain[i];
+            const n = Math.floor(tileNoise[i] * 10);
+            const px = x * ts, py = y * ts;
+
+            if (t === T_WATER) {
+              const coastal = (x > 0 && terrain[i - 1] !== T_WATER) ||
+                              (x + 1 < cols && terrain[i + 1] !== T_WATER) ||
+                              (y > 0 && terrain[i - cols] !== T_WATER) ||
+                              (y + 1 < rows && terrain[i + cols] !== T_WATER);
+              const c = coastal ? pal.waterCoast : pal.waterDeep;
+              g.fillStyle = `rgb(${c[0] + n}, ${c[1] + n}, ${c[2] + n})`;
+              g.fillRect(px, py, ts, ts);
+            } else if (t === T_BRIDGE) {
+              g.fillStyle = pal.bridge;
+              g.fillRect(px, py, ts, ts);
+              g.fillStyle = pal.bridgeStripe;
+              g.fillRect(px + 1, py + Math.floor(ts * 0.44), ts - 2, Math.max(1, Math.floor(ts * 0.14)));
+            } else if (t === T_BROKEN_BRIDGE) {
+              g.fillStyle = pal.brokenBridge;
+              g.fillRect(px, py, ts, ts);
+              g.strokeStyle = '#ef4444';
+              g.lineWidth = 1.2;
+              g.beginPath();
+              g.moveTo(px + 2, py + 2); g.lineTo(px + ts - 2, py + ts - 2);
+              g.moveTo(px + ts - 2, py + 2); g.lineTo(px + 2, py + ts - 2);
+              g.stroke();
+            } else if (t === T_MOUNTAIN) {
+              const c = pal.mountain;
+              g.fillStyle = `rgb(${c[0] + n}, ${c[1] + n}, ${c[2] + n})`;
+              g.fillRect(px, py, ts, ts);
+              g.strokeStyle = pal.mountainLine;
+              g.lineWidth = Math.max(1, ts * 0.09);
+              g.beginPath();
+              g.moveTo(px + ts * 0.18, py + ts * 0.78);
+              g.lineTo(px + ts * 0.5, py + ts * 0.22);
+              g.lineTo(px + ts * 0.82, py + ts * 0.78);
+              g.stroke();
+            } else if (t === T_FOREST) {
+              const c = pal.forest;
+              g.fillStyle = `rgb(${c[0] + n}, ${c[1] + n}, ${c[2] + n})`;
+              g.fillRect(px, py, ts, ts);
+              g.fillStyle = pal.forestTree;
+              g.beginPath();
+              g.arc(px + ts * 0.36, py + ts * 0.42, ts * 0.22, 0, Math.PI * 2);
+              g.arc(px + ts * 0.66, py + ts * 0.62, ts * 0.2, 0, Math.PI * 2);
+              g.fill();
+            } else if (t === T_TUNNEL) {
+              const c = pal.plains;
+              g.fillStyle = `rgb(${c[0] + 12}, ${c[1] + 12}, ${c[2] + 16})`;
+              g.fillRect(px, py, ts, ts);
+            } else {
+              const c = pal.plains;
+              g.fillStyle = `rgb(${c[0] + n}, ${c[1] + n}, ${c[2] + n})`;
+              g.fillRect(px, py, ts, ts);
+              if (t === T_CRATER) {
+                g.fillStyle = pal.crater;
+                g.beginPath();
+                g.arc(px + ts * 0.5, py + ts * 0.5, ts * 0.42, 0, Math.PI * 2);
+                g.fill();
+              }
+            }
+          }
+        }
+
+        // Tactical Grid
+        g.strokeStyle = pal.gridLine;
+        g.lineWidth = 1;
+        g.beginPath();
+        for (let x = 0; x <= cols; x += 2) { g.moveTo(x * ts + 0.5, 0); g.lineTo(x * ts + 0.5, mapH); }
+        for (let y = 0; y <= rows; y += 2) { g.moveTo(0, y * ts + 0.5); g.lineTo(mapW, y * ts + 0.5); }
+        g.stroke();
+
+        g.strokeStyle = pal.frameLine;
+        g.lineWidth = 2;
+        g.strokeRect(1, 1, mapW - 2, mapH - 2);
+        world.terrainDirty = false;
+      }
+
+      function renderFrame(timeSec) {
+        if (!world) return;
+        if (world.terrainDirty) bakeStaticTerrain();
+
+        const pal = THEME_PALETTES[session.theme];
+        const dpr = session.dpr;
+        const ts = session.tileSize;
+        const { cols, rows, terrain, owner, capFade, isolated } = world;
+
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.fillStyle = pal.bg;
+        ctx.fillRect(0, 0, session.viewW, session.viewH);
+
+        const sx = world.shakeMag > 0.1 ? rand(-world.shakeMag, world.shakeMag) : 0;
+        const sy = world.shakeMag > 0.1 ? rand(-world.shakeMag, world.shakeMag) : 0;
+        ctx.translate(session.offsetX + sx, session.offsetY + sy);
+
+        // 1) Static terrain layer
+        ctx.drawImage(terrainCanvas, 0, 0);
+
+        // 2) Dynamic territory shading + glowing frontlines + mobilization aura
+        const redMobPulse = world.ai[TEAM_RED].mobilizationTimer > 0 ? 0.11 + Math.sin(timeSec * 8) * 0.06 : 0;
+        const blueMobPulse = world.ai[TEAM_BLUE].mobilizationTimer > 0 ? 0.11 + Math.sin(timeSec * 8) * 0.06 : 0;
+        const isoPulse = 0.22 + Math.sin(timeSec * 5.5) * 0.08;
+        const redSegs = [], blueSegs = [];
+        const isoMarkers = [];
+
+        for (let y = 0; y < rows; y++) {
+          const rowOff = y * cols;
+          const py = y * ts;
+          for (let x = 0; x < cols; x++) {
+            const i = rowOff + x;
+            const own = owner[i];
+            if (own === TEAM_NEUTRAL) continue;
+
+            const px = x * ts;
+            const isIso = isolated[i] === 1;
+            const blend = 0.25 + capFade[i] * 0.75;
+            const mobAdd = own === TEAM_RED ? redMobPulse : blueMobPulse;
+            const baseA = isIso ? isoPulse : (session.theme === 'dark' ? 0.42 : 0.34);
+            const alpha = clamp((baseA + mobAdd) * blend, 0.1, 0.75);
+            const rgb = own === TEAM_RED
+              ? (isIso ? pal.redIso : pal.redTile)
+              : (isIso ? pal.blueIso : pal.blueTile);
+
+            ctx.fillStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha.toFixed(3)})`;
+            ctx.fillRect(px, py, ts, ts);
+
+            if (isIso && (x + y) % 5 === 0) isoMarkers.push({ x: px + ts * 0.5, y: py + ts * 0.5 });
+
+            const segs = own === TEAM_RED ? redSegs : blueSegs;
+            if (x > 0 && owner[i - 1] !== own && terrain[i - 1] !== T_WATER) segs.push(px, py, px, py + ts);
+            if (x + 1 < cols && owner[i + 1] !== own && terrain[i + 1] !== T_WATER) segs.push(px + ts, py, px + ts, py + ts);
+            if (y > 0 && owner[i - cols] !== own && terrain[i - cols] !== T_WATER) segs.push(px, py, px + ts, py);
+            if (y + 1 < rows && owner[i + cols] !== own && terrain[i + cols] !== T_WATER) segs.push(px, py + ts, px + ts, py + ts);
+          }
+        }
+
+        ctx.lineWidth = Math.max(1.2, ts * 0.11);
+        if (redSegs.length) {
+          ctx.strokeStyle = pal.redBorder;
+          ctx.beginPath();
+          for (let i = 0; i < redSegs.length; i += 4) { ctx.moveTo(redSegs[i], redSegs[i + 1]); ctx.lineTo(redSegs[i + 2], redSegs[i + 3]); }
+          ctx.stroke();
+        }
+        if (blueSegs.length) {
+          ctx.strokeStyle = pal.blueBorder;
+          ctx.beginPath();
+          for (let i = 0; i < blueSegs.length; i += 4) { ctx.moveTo(blueSegs[i], blueSegs[i + 1]); ctx.lineTo(blueSegs[i + 2], blueSegs[i + 3]); }
+          ctx.stroke();
+        }
+
+        // Supply-cut warning icons on isolated pockets
+        if (isoMarkers.length > 0 && Math.floor(timeSec * 3) % 2 === 0) {
+          ctx.fillStyle = '#fbbf24';
+          ctx.font = `bold ${Math.max(9, Math.floor(ts * 0.7))}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          for (let i = 0; i < Math.min(isoMarkers.length, 10); i++) {
+            ctx.fillText('⚠', isoMarkers[i].x, isoMarkers[i].y);
+          }
+        }
+
+        // 3) Opened Secret Tunnels (glowing dashed route + portals)
+        for (const tun of world.tunnels) {
+          if (!tun.open) continue;
+          ctx.save();
+          ctx.strokeStyle = pal.tunnelGlow;
+          ctx.lineWidth = Math.max(2, ts * 0.16);
+          ctx.setLineDash([ts * 0.45, ts * 0.35]);
+          ctx.lineDashOffset = -timeSec * 22;
+          ctx.beginPath();
+          tun.pts.forEach((p, idx) => {
+            const gx = (p.x + 0.5) * ts, gy = (p.y + 0.5) * ts;
+            if (idx === 0) ctx.moveTo(gx, gy); else ctx.lineTo(gx, gy);
+          });
+          ctx.stroke();
+          ctx.setLineDash([]);
+          // Portal gates
+          const ends = [tun.pts[0], tun.pts[tun.pts.length - 1]];
+          for (const e of ends) {
+            ctx.fillStyle = pal.baseBack;
+            ctx.beginPath(); ctx.arc((e.x + 0.5) * ts, (e.y + 0.5) * ts, ts * 0.55, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = pal.tunnelGlow;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        // 4) Amphibious Landing Craft
+        for (const b of world.boats) {
+          const bx = b.x * ts, by = b.y * ts;
+          const col = b.team === TEAM_RED ? pal.redMain : pal.blueMain;
+          // Sea wake V-lines
+          ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(bx - Math.cos(b.ang - 0.5) * ts * 0.7, by - Math.sin(b.ang - 0.5) * ts * 0.7);
+          ctx.lineTo(bx, by);
+          ctx.lineTo(bx - Math.cos(b.ang + 0.5) * ts * 0.7, by - Math.sin(b.ang + 0.5) * ts * 0.7);
+          ctx.stroke();
+          // Hull
+          ctx.save();
+          ctx.translate(bx, by);
+          ctx.rotate(b.ang);
+          ctx.fillStyle = col;
+          ctx.beginPath();
+          ctx.moveTo(ts * 0.48, 0);
+          ctx.lineTo(-ts * 0.38, -ts * 0.26);
+          ctx.lineTo(-ts * 0.38, ts * 0.26);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // 5) Shockwaves
+        for (const s of world.shockwaves) {
+          const alpha = clamp(s.life / s.maxLife, 0, 1);
+          ctx.save();
+          ctx.globalAlpha = alpha * 0.85;
+          ctx.strokeStyle = s.color;
+          ctx.lineWidth = Math.max(1.8, ts * 0.18 * alpha);
+          ctx.beginPath();
+          ctx.arc(s.x * ts, s.y * ts, s.radius * ts, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // 6) Bases
+        renderBases(ts, timeSec, pal);
+
+        // 7) Ground Units & Super-Heavy Juggernaut
+        renderUnits(ts, timeSec, pal);
+
+        // 8) Tracers & Explosions
+        ctx.lineCap = 'round';
+        for (const tr of world.tracers) {
+          ctx.globalAlpha = clamp(tr.life / tr.maxLife, 0, 1);
+          ctx.strokeStyle = tr.color;
+          ctx.lineWidth = tr.width;
+          ctx.beginPath();
+          ctx.moveTo(tr.x1 * ts, tr.y1 * ts);
+          ctx.lineTo(tr.x2 * ts, tr.y2 * ts);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+
+        for (const p of world.particles) {
+          const a = clamp(p.life / p.maxLife, 0, 1);
+          ctx.globalAlpha = a;
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x * ts, p.y * ts, p.size * (0.4 + a * 0.6), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        // 9) Airborne Layer: Paratroopers, Aircraft, Ballistic Missiles & Interceptors
+        renderAirAndMissiles(ts, timeSec, pal);
+
+        ctx.restore();
+      }
+
+      function renderBases(ts, timeSec, pal) {
+        for (const b of world.bases) {
+          const bx = b.x * ts, by = b.y * ts;
+          const spec = BASE_SPECS[b.type];
+          const r = spec.radius * ts * 0.66;
+          const col = b.owner === TEAM_RED ? pal.redMain : (b.owner === TEAM_BLUE ? pal.blueMain : pal.neutralBase);
+
+          if (b.owner !== TEAM_NEUTRAL) {
+            ctx.strokeStyle = col;
+            ctx.globalAlpha = (1 - b.pulse) * 0.34;
+            ctx.lineWidth = 1.4;
+            ctx.beginPath();
+            ctx.arc(bx, by, r + b.pulse * ts * 1.1, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+          }
+
+          ctx.fillStyle = pal.baseBack;
+          ctx.beginPath(); ctx.arc(bx, by, r + 2.5, 0, Math.PI * 2); ctx.fill();
+
+          if (b.capture > 0 && b.capture < spec.maxCap) {
+            const pct = clamp(b.capture / spec.maxCap, 0, 1);
+            ctx.strokeStyle = b.capturingTeam === TEAM_RED ? pal.redMain : (b.capturingTeam === TEAM_BLUE ? pal.blueMain : pal.neutralBase);
+            ctx.lineWidth = Math.max(2.2, ts * 0.16);
+            ctx.beginPath();
+            ctx.arc(bx, by, r + 2.5, -Math.PI * 0.5, -Math.PI * 0.5 + pct * Math.PI * 2);
+            ctx.stroke();
+          } else {
+            ctx.strokeStyle = col;
+            ctx.lineWidth = b.type === BASE_CAPITAL ? 2.6 : 1.8;
+            ctx.beginPath(); ctx.arc(bx, by, r + 1.5, 0, Math.PI * 2); ctx.stroke();
+          }
+
+          ctx.fillStyle = col;
+          if (b.type === BASE_CAPITAL) {
+            drawStar(ctx, bx, by, 5, r * 0.88, r * 0.44);
+            ctx.fill();
+          } else if (b.type === BASE_FORTRESS) {
+            drawPoly(ctx, bx, by, 6, r * 0.8, Math.PI / 6);
+            ctx.fill();
+            ctx.strokeStyle = pal.baseBack;
+            ctx.lineWidth = 1.4;
+            drawPoly(ctx, bx, by, 6, r * 0.42, Math.PI / 6);
+            ctx.stroke();
+          } else if (b.type === BASE_SILO) {
+            // Missile Silo Triangle
+            drawPoly(ctx, bx, by, 3, r * 0.85, -Math.PI / 2);
+            ctx.fill();
+          } else {
+            // Supply Diamond
+            drawPoly(ctx, bx, by, 4, r * 0.78, 0);
+            ctx.fill();
+          }
+
+          if (b.underAttackTimer > 0 && Math.floor(timeSec * 8) % 2 === 0) {
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(bx, by, r + 6, 0, Math.PI * 2); ctx.stroke();
+          }
+        }
+      }
+
+      function renderUnits(ts, timeSec, pal) {
+        for (let i = 0; i < world.units.length; i++) {
+          const u = world.units[i];
+          const ux = u.x * ts, uy = u.y * ts;
+          const isRed = u.team === TEAM_RED;
+          const fill = isRed ? pal.redMain : pal.blueMain;
+          const core = isRed ? pal.redCore : pal.blueCore;
+
+          if (u.type === U_JUGGERNAUT) {
+            // Boss Super-Heavy Tank / Mobile Fortress
+            const rad = Math.max(7.5, ts * 0.72);
+            const auraR = rad * (1.35 + Math.sin(timeSec * 7) * 0.15);
+            ctx.save();
+            ctx.strokeStyle = '#fbbf24';
+            ctx.globalAlpha = 0.65;
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(ux, uy, auraR, 0, Math.PI * 2); ctx.stroke();
+            ctx.globalAlpha = 1;
+
+            const ang = Math.atan2(u.vy, u.vx);
+            ctx.translate(ux, uy);
+            ctx.rotate(ang);
+            // Armored Hull
+            ctx.fillStyle = pal.baseBack;
+            ctx.fillRect(-rad * 1.15, -rad * 0.85, rad * 2.3, rad * 1.7);
+            ctx.fillStyle = fill;
+            ctx.fillRect(-rad, -rad * 0.7, rad * 2.0, rad * 1.4);
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 1.6;
+            ctx.strokeRect(-rad, -rad * 0.7, rad * 2.0, rad * 1.4);
+            // Twin Heavy Cannons
+            ctx.fillStyle = core;
+            ctx.fillRect(rad * 0.2, -rad * 0.32, rad * 1.1, rad * 0.22);
+            ctx.fillRect(rad * 0.2, rad * 0.1, rad * 1.1, rad * 0.22);
+            ctx.beginPath(); ctx.arc(0, 0, rad * 0.45, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+
+            // Overhead Boss HP Bar
+            const bw = rad * 2.8, bh = 4;
+            const bx = ux - bw * 0.5, by = uy - rad - 8;
+            ctx.fillStyle = 'rgba(0,0,0,0.75)';
+            ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+            ctx.fillStyle = '#fbbf24';
+            ctx.fillRect(bx, by, bw * clamp(u.hp / u.maxHp, 0, 1), bh);
+          } else if (u.type === U_ARTILLERY) {
+            const rad = Math.max(3.2, ts * 0.33);
+            ctx.fillStyle = pal.baseBack;
+            ctx.beginPath(); ctx.arc(ux, uy, rad + 1, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = fill;
+            drawPoly(ctx, ux, uy, 4, rad, Math.PI / 4);
+            ctx.fill();
+            ctx.strokeStyle = core; ctx.lineWidth = 1; ctx.stroke();
+          } else if (u.type === U_RAIDER) {
+            const rad = Math.max(2.6, ts * 0.27);
+            ctx.strokeStyle = isRed ? 'rgba(255,59,92,0.42)' : 'rgba(41,151,255,0.42)';
+            ctx.lineWidth = Math.max(1.1, ts * 0.09);
+            ctx.beginPath(); ctx.moveTo(u.px * ts, u.py * ts); ctx.lineTo(ux, uy); ctx.stroke();
+
+            ctx.save();
+            ctx.translate(ux, uy);
+            ctx.rotate(Math.atan2(u.vy, u.vx));
+            ctx.fillStyle = core;
+            ctx.beginPath();
+            ctx.moveTo(rad * 1.25, 0);
+            ctx.lineTo(-rad * 0.85, -rad * 0.72);
+            ctx.lineTo(-rad * 0.35, 0);
+            ctx.lineTo(-rad * 0.85, rad * 0.72);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = fill; ctx.lineWidth = 1.1; ctx.stroke();
+            ctx.restore();
+          } else {
+            const rad = Math.max(2.0, ts * 0.21);
+            ctx.fillStyle = fill;
+            ctx.beginPath(); ctx.arc(ux, uy, rad, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = core;
+            ctx.beginPath(); ctx.arc(ux, uy, rad * 0.44, 0, Math.PI * 2); ctx.fill();
+          }
+        }
+      }
+
+      function renderAirAndMissiles(ts, timeSec, pal) {
+        // Paratroopers
+        for (const p of world.paratroopers) {
+          const px = (p.x + Math.sin(p.sway) * 0.25) * ts;
+          const py = (p.y - p.z * 0.55) * ts;
+          const col = p.team === TEAM_RED ? pal.redMain : pal.blueMain;
+          // Ground shadow
+          ctx.fillStyle = 'rgba(0,0,0,0.32)';
+          ctx.beginPath(); ctx.arc(p.x * ts, p.y * ts, ts * 0.2, 0, Math.PI * 2); ctx.fill();
+          // Parachute canopy
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath(); ctx.arc(px, py - ts * 0.28, ts * 0.32, Math.PI, 0); ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(px - ts * 0.28, py - ts * 0.28); ctx.lineTo(px, py + ts * 0.1);
+          ctx.moveTo(px + ts * 0.28, py - ts * 0.28); ctx.lineTo(px, py + ts * 0.1);
+          ctx.stroke();
+          ctx.fillStyle = col;
+          ctx.beginPath(); ctx.arc(px, py + ts * 0.12, ts * 0.18, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // Aircraft (Bombers & Transports with ground shadows)
+        for (const ac of world.aircraft) {
+          const ax = ac.x * ts, ay = ac.y * ts;
+          const col = ac.team === TEAM_RED ? pal.redMain : pal.blueMain;
+          const sc = ac.kind === 'transport' ? ts * 0.85 : ts * 0.72;
+
+          // Ground shadow offset
+          ctx.save();
+          ctx.translate(ax + ts * 0.9, ay + ts * 1.1);
+          ctx.rotate(ac.ang);
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.32)';
+          drawPlaneShape(ctx, sc);
+          ctx.fill();
+          ctx.restore();
+
+          // Plane silhouette
+          ctx.save();
+          ctx.translate(ax, ay);
+          ctx.rotate(ac.ang);
+          ctx.fillStyle = '#ffffff';
+          drawPlaneShape(ctx, sc);
+          ctx.fill();
+          ctx.strokeStyle = col;
+          ctx.lineWidth = 1.6;
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Ballistic Missiles + Target Reticle + Smoke Arc
+        for (const m of world.missiles) {
+          const col = m.team === TEAM_RED ? pal.redMain : pal.blueMain;
+          const tx = m.tx * ts, ty = m.ty * ts;
+
+          // Rotating Target Warning Ring
+          ctx.save();
+          ctx.translate(tx, ty);
+          ctx.rotate(timeSec * 3.5);
+          ctx.strokeStyle = col;
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.beginPath(); ctx.arc(0, 0, ts * 2.1 * (1.25 - m.t * 0.45), 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.moveTo(-ts * 0.8, 0); ctx.lineTo(ts * 0.8, 0);
+          ctx.moveTo(0, -ts * 0.8); ctx.lineTo(0, ts * 0.8);
+          ctx.stroke();
+          ctx.restore();
+
+          // Parabolic Smoke Trail
+          if (m.trail.length > 1) {
+            ctx.beginPath();
+            for (let k = 0; k < m.trail.length; k++) {
+              const pt = m.trail[k];
+              const px = pt.x * ts, py = (pt.y - pt.z * 0.55) * ts;
+              if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.strokeStyle = session.theme === 'dark' ? 'rgba(255,255,255,0.55)' : 'rgba(60,50,40,0.48)';
+            ctx.lineWidth = Math.max(2, ts * 0.16);
+            ctx.stroke();
+          }
+
+          // Missile Warhead
+          const mx = m.x * ts, my = (m.y - m.z * 0.55) * ts;
+          ctx.fillStyle = '#fbbf24';
+          ctx.beginPath(); ctx.arc(mx, my, Math.max(4, ts * 0.34), 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath(); ctx.arc(mx, my, Math.max(2, ts * 0.18), 0, Math.PI * 2); ctx.fill();
+        }
+
+        // Interceptor Trails
+        for (const ic of world.interceptors) {
+          if (ic.trail.length > 1) {
+            ctx.beginPath();
+            for (let k = 0; k < ic.trail.length; k++) {
+              const pt = ic.trail[k];
+              const px = pt.x * ts, py = (pt.y - pt.z * 0.55) * ts;
+              if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+          const ix = ic.x * ts, iy = (ic.y - ic.z * 0.55) * ts;
+          ctx.fillStyle = '#e0f2fe';
+          ctx.beginPath(); ctx.arc(ix, iy, 3.2, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+
+      function drawPlaneShape(g, s) {
+        g.beginPath();
+        g.moveTo(s, 0);
+        g.lineTo(s * 0.15, -s * 0.22);
+        g.lineTo(-s * 0.1, -s * 1.05);
+        g.lineTo(-s * 0.38, -s * 1.05);
+        g.lineTo(-s * 0.25, -s * 0.2);
+        g.lineTo(-s * 0.85, -s * 0.18);
+        g.lineTo(-s * 1.0, -s * 0.48);
+        g.lineTo(-s * 1.05, 0);
+        g.lineTo(-s * 1.0, s * 0.48);
+        g.lineTo(-s * 0.85, s * 0.18);
+        g.lineTo(-s * 0.25, s * 0.2);
+        g.lineTo(-s * 0.38, s * 1.05);
+        g.lineTo(-s * 0.1, s * 1.05);
+        g.lineTo(s * 0.15, s * 0.22);
+        g.closePath();
+      }
+
+      function drawPoly(g, cx, cy, sides, r, rot) {
+        g.beginPath();
+        for (let i = 0; i < sides; i++) {
+          const a = rot + (i / sides) * Math.PI * 2;
+          const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+          if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+        }
+        g.closePath();
+      }
+
+      function drawStar(g, cx, cy, spikes, oR, iR) {
+        let rot = -Math.PI / 2;
+        const step = Math.PI / spikes;
+        g.beginPath();
+        for (let i = 0; i < spikes; i++) {
+          g.lineTo(cx + Math.cos(rot) * oR, cy + Math.sin(rot) * oR); rot += step;
+          g.lineTo(cx + Math.cos(rot) * iR, cy + Math.sin(rot) * iR); rot += step;
+        }
+        g.closePath();
+      }
+
+      // =======================================================================
+      // 13. MAIN SIMULATION LOOP
+      // =======================================================================
+      let lastTs = 0;
+
+      function stepSim(dt) {
+        if (!world) return;
+        if (world.winner !== TEAM_NEUTRAL) {
+          updateEffects(dt);
+          if (session.autoNext) {
+            world.nextCountdown -= dt / session.speed;
+            dom.resCountdown.textContent = `次の戦役へ ${Math.max(0, Math.ceil(world.nextCountdown))}秒後に移行...`;
+            if (world.nextCountdown <= 0) generateCampaign();
+          }
+          return;
+        }
+
+        world.elapsed += dt;
+        rebuildSpatialGrid();
+        updateAICommandersAndEvents(dt);
+        updateBases(dt);
+        updateUnits(dt);
+        updateMissilesAndAir(dt);
+        updateTerrainTimers(dt);
+        updateEffects(dt);
+
+        world.flowTimer -= dt;
+        if (world.flowTimer <= 0) { world.flowTimer = 0.45; recomputeAllFlowFields(); }
+
+        world.supplyTimer -= dt;
+        if (world.supplyTimer <= 0) { world.supplyTimer = 1.4; updateSupplyLines(); }
+
+        world.hudTimer -= dt;
+        if (world.hudTimer <= 0) { world.hudTimer = 0.22; recomputeStats(); updateHUD(); }
+
+        world.graphTimer -= dt;
+        if (world.graphTimer <= 0) { world.graphTimer = 1.5; recordHistory(); }
+      }
+
+      function animate(ts) {
+        requestAnimationFrame(animate);
+        try {
+          if (!lastTs) lastTs = ts;
+          const rawDt = Math.min((ts - lastTs) / 1000, 0.05);
+          lastTs = ts;
+
+          if (!session.paused && world) {
+            for (let s = 0; s < session.speed; s++) {
+              stepSim(rawDt);
+              if (world.elapsed === 0) break;
+            }
+          }
+          renderFrame(ts / 1000);
+        } catch (err) {
+          console.error('War Chronicle frame error:', err);
+        }
+      }
+
+      // =======================================================================
+      // 14. UI BINDINGS & BOOTSTRAP
+      // =======================================================================
+      function syncDrawerVisibility() {
+        const anyOpen = session.showLog || session.showGraph;
+        dom.sideDrawer.classList.toggle('closed', !anyOpen);
+        dom.drawerLogSec.classList.toggle('hidden', !session.showLog);
+        dom.drawerGraphSec.classList.toggle('hidden', !session.showGraph);
+        dom.btnLogToggle.classList.toggle('active', session.showLog);
+        dom.btnGraphToggle.classList.toggle('active', session.showGraph);
+        // Recompute canvas viewport cleanly after drawer docks/undocks
+        requestAnimationFrame(() => {
+          handleResize();
+          if (session.showGraph && world) renderGraph();
+        });
+      }
+
+      function bindUI() {
+        dom.btnPause.addEventListener('click', () => {
+          session.paused = !session.paused;
+          dom.btnPause.textContent = session.paused ? '▶ 再開' : '⏸ 停止';
+          dom.btnPause.classList.toggle('active', session.paused);
+        });
+
+        dom.speedBtns.forEach(btn => {
+          btn.addEventListener('click', () => {
+            session.speed = Number(btn.dataset.speed) || 1;
+            dom.speedBtns.forEach(b => b.classList.toggle('active', b === btn));
+          });
+        });
+
+        dom.mapSelect.addEventListener('change', (e) => {
+          session.mapMode = e.target.value;
+          generateCampaign();
+        });
+
+        dom.btnNextCampaign.addEventListener('click', generateCampaign);
+        dom.btnResNext.addEventListener('click', generateCampaign);
+
+        dom.btnAutoNext.addEventListener('click', () => {
+          session.autoNext = !session.autoNext;
+          dom.btnAutoNext.textContent = session.autoNext ? '自動連戦: ON' : '自動連戦: OFF';
+          dom.btnAutoNext.classList.toggle('active', session.autoNext);
+          if (world && world.winner !== TEAM_NEUTRAL) {
+            dom.resCountdown.textContent = session.autoNext
+              ? `次の戦役へ ${Math.max(1, Math.ceil(world.nextCountdown))}秒後に移行...`
+              : '自動連戦はOFFです';
+          }
+        });
+
+        dom.btnLogToggle.addEventListener('click', () => {
+          session.showLog = !session.showLog;
+          syncDrawerVisibility();
+        });
+
+        dom.btnGraphToggle.addEventListener('click', () => {
+          session.showGraph = !session.showGraph;
+          syncDrawerVisibility();
+        });
+
+        dom.btnSound.addEventListener('click', () => {
+          session.soundEnabled = !session.soundEnabled;
+          dom.btnSound.textContent = session.soundEnabled ? '🔊 音ON' : '🔇 音OFF';
+          dom.btnSound.classList.toggle('active', session.soundEnabled);
+          if (session.soundEnabled) {
+            sfx.ensureContext();
+            sfx.playAlert([523, 659]);
+          }
+        });
+
+        dom.btnTheme.addEventListener('click', () => {
+          session.theme = session.theme === 'dark' ? 'light' : 'dark';
+          document.documentElement.setAttribute('data-theme', session.theme);
+          dom.btnTheme.textContent = session.theme === 'dark' ? '☀ 地図風' : '🌙 司令室';
+          if (world) {
+            bakeStaticTerrain();
+            if (session.showGraph) renderGraph();
+          }
+        });
+
+        let resizeTimer = null;
+        window.addEventListener('resize', () => {
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(handleResize, 90);
+        });
+      }
+
+      window.onload = function () {
+        bindUI();
+        generateCampaign();
+        requestAnimationFrame(animate);
+      };
+    })();
+  </script>
+</body>
+</html>
